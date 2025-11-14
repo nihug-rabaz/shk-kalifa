@@ -1,0 +1,58 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const board = searchParams.get('board');
+
+    if (!board || (board !== '1' && board !== '2')) {
+      return NextResponse.json(
+        { error: 'Invalid board number. Use 1 or 2' },
+        { status: 400 }
+      );
+    }
+
+    const welcomeDir = board === '1' ? 'welcomfirst' : 'welcome2';
+    const htmlPath = join(process.cwd(), 'public', welcomeDir, 'index.html');
+
+    try {
+      let htmlContent = await readFile(htmlPath, 'utf-8');
+      
+      const basePath = `/${welcomeDir}`;
+      htmlContent = htmlContent.replace(/href="globals\.css"/g, `href="${basePath}/globals.css"`);
+      htmlContent = htmlContent.replace(/href="style\.css"/g, `href="${basePath}/style.css"`);
+      htmlContent = htmlContent.replace(/src="img\/([^"]+)"/g, (match, filename) => {
+        return `src="${basePath}/img/${filename}"`;
+      });
+      htmlContent = htmlContent.replace(/src="fonts\/([^"]+)"/g, (match, filename) => {
+        return `src="${basePath}/fonts/${filename}"`;
+      });
+      htmlContent = htmlContent.replace(/src="fonts\/([^"]+)\/([^"]+)"/g, (match, dir, filename) => {
+        return `src="${basePath}/fonts/${dir}/${filename}"`;
+      });
+      htmlContent = htmlContent.replace(/src="responsive\.js"/g, `src="${basePath}/responsive.js"`);
+      htmlContent = htmlContent.replace(/src="time\.js"/g, `src="${basePath}/time.js"`);
+
+      return new NextResponse(htmlContent, {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+        },
+      });
+    } catch (error) {
+      console.error('Error reading HTML:', error);
+      return NextResponse.json(
+        { error: 'HTML file not found' },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error('Welcome HTML API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+

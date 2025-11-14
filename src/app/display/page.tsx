@@ -14,14 +14,12 @@ export default function DisplayPage() {
     const checkLinked = () => {
       try {
         const boardInfo = BoardManager.getBoardInfo();
-        console.log('Display page - board info:', boardInfo);
         
         const linked = boardInfo?.linked === true || 
                       boardInfo?.linked === 'true' || 
                       (boardInfo?.logical_board_id && boardInfo.logical_board_id > 0);
         
         if (!linked) {
-          console.log('Not linked, redirecting to claim');
           router.push('/claim');
           return;
         }
@@ -56,11 +54,10 @@ export default function DisplayPage() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#f5f5f5',
-        gap: '20px'
+        background: '#000',
+        color: '#fff'
       }}>
         <div style={{ fontSize: '24px' }}>טוען...</div>
-        <div style={{ fontSize: '16px', color: '#666' }}>מעבר למסך התצוגה</div>
       </div>
     );
   }
@@ -87,16 +84,14 @@ export default function DisplayPage() {
         justifyContent: 'center'
       }}>
         <iframe
-          src={`/api/board-html?board=1`}
+          src={`/api/welcome-html?board=1`}
           style={{
             width: '100%',
             height: '100%',
             border: 'none',
-            background: 'transparent',
-            transform: 'scale(1)',
-            transformOrigin: 'center center'
+            background: 'transparent'
           }}
-          title="לוח רבנות 1"
+          title="מסך ראשון"
           allowFullScreen
           scrolling="no"
         />
@@ -115,55 +110,16 @@ export default function DisplayPage() {
         justifyContent: 'center'
       }}>
         <iframe
-          src={`/api/board-html?board=2`}
+          src={`/api/welcome-html?board=2`}
           style={{
             width: '100%',
             height: '100%',
             border: 'none',
-            background: 'transparent',
-            transform: 'scale(1)',
-            transformOrigin: 'center center'
+            background: 'transparent'
           }}
-          title="לוח רבנות 2"
+          title="מסך שני"
           allowFullScreen
           scrolling="no"
-        />
-      </div>
-
-      <div style={{
-        position: 'absolute',
-        bottom: '30px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        gap: '12px',
-        zIndex: 10,
-        padding: '8px 16px',
-        background: 'rgba(0, 0, 0, 0.5)',
-        borderRadius: '20px',
-        backdropFilter: 'blur(10px)'
-      }}>
-        <div 
-          style={{
-            width: currentBoard === 1 ? '24px' : '12px',
-            height: '12px',
-            borderRadius: '6px',
-            background: currentBoard === 1 ? '#fff' : 'rgba(255, 255, 255, 0.5)',
-            transition: 'all 0.3s ease',
-            cursor: 'pointer'
-          }} 
-          onClick={() => setCurrentBoard(1)} 
-        />
-        <div 
-          style={{
-            width: currentBoard === 2 ? '24px' : '12px',
-            height: '12px',
-            borderRadius: '6px',
-            background: currentBoard === 2 ? '#fff' : 'rgba(255, 255, 255, 0.5)',
-            transition: 'all 0.3s ease',
-            cursor: 'pointer'
-          }} 
-          onClick={() => setCurrentBoard(2)} 
         />
       </div>
     </div>

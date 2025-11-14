@@ -77,7 +77,7 @@ export default function ClaimPage() {
                 
                 setTimeout(() => {
                   router.push('/display');
-                }, 1500);
+                }, 500);
               }
             }
           } catch (error) {
@@ -110,10 +110,6 @@ export default function ClaimPage() {
       }
     };
   }, [router]);
-
-  const handleGoToDisplay = () => {
-    router.push('/display');
-  };
 
   return (
     <div style={{
@@ -201,22 +197,9 @@ export default function ClaimPage() {
               <div>
                 <strong>משויך ללוח:</strong> {boardInfo.name || `לוח ${boardInfo.logical_board_id}`}
               </div>
-              <button
-                onClick={handleGoToDisplay}
-                style={{
-                  padding: '12px 24px',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  background: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  marginTop: '8px'
-                }}
-              >
-                מעבר למסך התצוגה
-              </button>
+              <div style={{ fontSize: '16px', marginTop: '8px' }}>
+                מעבר למסך התצוגה...
+              </div>
             </div>
           )}
         </div>

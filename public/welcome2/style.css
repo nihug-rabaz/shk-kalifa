@@ -1,0 +1,764 @@
+.frame {
+  position: relative;
+  width: 4000px;
+  height: 2251px;
+  background-color: #ffffff;
+}
+
+.frame .linked-file {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4000px;
+  height: 2236px;
+}
+
+.frame .element {
+  top: 1580px;
+  left: 1120px;
+  width: 267px;
+  height: 267px;
+  position: absolute;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.frame .group {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  display: flex;
+}
+
+.frame .div-wrapper {
+  width: 1px;
+  height: 1px;
+  display: flex;
+}
+
+.frame .text-wrapper {
+  position: absolute;
+  top: 159px;
+  left: 1109px;
+  width: 2827px;
+  height: 176px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 175.4px;
+  text-align: left;
+  letter-spacing: 0;
+  line-height: 175.4px;
+  white-space: nowrap;
+  direction: rtl;
+  z-index: 1;
+}
+
+.frame .div {
+  position: absolute;
+  top: 1988px;
+  left: 190px;
+  font-family: "Fb Liddar", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 120.3px;
+  text-align: left;
+  letter-spacing: 1.06px;
+  line-height: 120.3px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .p {
+  position: absolute;
+  top: 414px;
+  left: 2184px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 79.2px;
+  text-align: left;
+  letter-spacing: -0.85px;
+  line-height: 79.2px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .text-wrapper-2 {
+  position: absolute;
+  top: 1374px;
+  left: 2654px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 79.2px;
+  text-align: left;
+  letter-spacing: -0.23px;
+  line-height: 79.2px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .text-wrapper-3 {
+  position: absolute;
+  top: 1374px;
+  left: 1068px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 79.2px;
+  text-align: left;
+  letter-spacing: 0;
+  line-height: 79.2px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .element-2 {
+  position: absolute;
+  top: 2156px;
+  left: 1229px;
+  width: 1675px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 500;
+  color: #ffffff;
+  font-size: 79.2px;
+  text-align: left;
+  letter-spacing: 0;
+  line-height: 79.2px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .text-wrapper-4 {
+  position: absolute;
+  top: 1483px;
+  left: calc(50.00% + 444px);
+  width: 589px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 52px;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-5 {
+  position: absolute;
+  top: 1483px;
+  left: calc(50.00% - 326px);
+  width: 589px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 52px;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-6 {
+  position: absolute;
+  top: 543px;
+  left: 596px;
+  width: 732px;
+  font-family: "Polin", Helvetica;
+  font-weight: 400;
+  color: #000000;
+  font-size: 34px;
+  text-align: justify;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-7 {
+  position: absolute;
+  top: 543px;
+  left: 1387px;
+  width: 732px;
+  font-family: "Polin", Helvetica;
+  font-weight: 400;
+  color: #000000;
+  font-size: 34px;
+  text-align: justify;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-8 {
+  position: absolute;
+  top: 543px;
+  left: 2171px;
+  width: 733px;
+  font-family: "Polin", Helvetica;
+  font-weight: 400;
+  color: #000000;
+  font-size: 34px;
+  text-align: justify;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .img {
+  position: absolute;
+  top: 1124px;
+  left: 894px;
+  width: 161px;
+  height: 161px;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.frame .text-wrapper-9 {
+  position: absolute;
+  top: 1216px;
+  left: 332px;
+  width: 817px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 45px;
+  letter-spacing: 0;
+  line-height: 40px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .text-wrapper-10 {
+  position: absolute;
+  top: 1252px;
+  left: 332px;
+  width: 817px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 31px;
+  letter-spacing: 0;
+  line-height: 40px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .group-2 {
+  position: absolute;
+  top: 1493px;
+  left: 507px;
+  width: 907px;
+  height: 411px;
+}
+
+.frame .text-wrapper-11 {
+  position: absolute;
+  top: 330px;
+  left: 609px;
+  width: 292px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 40px;
+  text-align: center;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-12 {
+  position: absolute;
+  top: 330px;
+  left: 0;
+  width: 242px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 40px;
+  text-align: center;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-13 {
+  position: absolute;
+  top: 0;
+  left: 202px;
+  width: 429px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 56px;
+  text-align: center;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .element-3 {
+  top: 1561px;
+  left: 785px;
+  width: 303px;
+  height: 304px;
+  position: absolute;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.frame .text-wrapper-14 {
+  position: absolute;
+  top: 159px;
+  left: 1098px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #2f5388;
+  font-size: 175.4px;
+  text-align: left;
+  letter-spacing: 0;
+  line-height: 175.4px;
+  white-space: nowrap;
+  direction: rtl;
+  z-index: 2;
+}
+
+.frame .element-4 {
+  position: absolute;
+  top: 1583px;
+  left: 500px;
+  width: 257px;
+  height: 257px;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+/* ========================================
+   INJECT ORIGINAL CSS CODE HERE
+   ======================================== */
+
+/* Additional semantic and accessibility improvements */
+
+.frame {
+  position: relative;
+  width: 4000px;
+  height: 2251px;
+  background-color: #ffffff;
+}
+
+.frame .linked-file {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4000px;
+  height: 2236px;
+}
+
+.frame .element {
+  top: 1580px;
+  left: 1120px;
+  width: 267px;
+  height: 267px;
+  position: absolute;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.frame .group {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  display: flex;
+}
+
+.frame .div-wrapper {
+  width: 1px;
+  height: 1px;
+  display: flex;
+}
+
+.frame .text-wrapper {
+  position: absolute;
+  top: 159px;
+  left: 1109px;
+  width: 2827px;
+  height: 176px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 175.4px;
+  text-align: left;
+  letter-spacing: 0;
+  line-height: 175.4px;
+  white-space: nowrap;
+  direction: rtl;
+  z-index: 1;
+}
+
+.frame .div {
+  position: absolute;
+  top: 1988px;
+  left: 190px;
+  font-family: "Fb Liddar", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 120.3px;
+  text-align: left;
+  letter-spacing: 1.06px;
+  line-height: 120.3px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .p {
+  position: absolute;
+  top: 414px;
+  left: 2184px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 79.2px;
+  text-align: left;
+  letter-spacing: -0.85px;
+  line-height: 79.2px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .text-wrapper-2 {
+  position: absolute;
+  top: 1374px;
+  left: 2654px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 79.2px;
+  text-align: left;
+  letter-spacing: -0.23px;
+  line-height: 79.2px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .text-wrapper-3 {
+  position: absolute;
+  top: 1374px;
+  left: 1068px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 79.2px;
+  text-align: left;
+  letter-spacing: 0;
+  line-height: 79.2px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .element-2 {
+  position: absolute;
+  top: 2156px;
+  left: 1229px;
+  width: 1675px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 500;
+  color: #ffffff;
+  font-size: 79.2px;
+  text-align: left;
+  letter-spacing: 0;
+  line-height: 79.2px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .text-wrapper-4 {
+  position: absolute;
+  top: 1483px;
+  left: calc(50.00% + 444px);
+  width: 589px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 52px;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-5 {
+  position: absolute;
+  top: 1483px;
+  left: calc(50.00% - 326px);
+  width: 589px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 52px;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-6 {
+  position: absolute;
+  top: 543px;
+  left: 596px;
+  width: 732px;
+  font-family: "Polin", Helvetica;
+  font-weight: 400;
+  color: #000000;
+  font-size: 34px;
+  text-align: justify;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-7 {
+  position: absolute;
+  top: 543px;
+  left: 1387px;
+  width: 732px;
+  font-family: "Polin", Helvetica;
+  font-weight: 400;
+  color: #000000;
+  font-size: 34px;
+  text-align: justify;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-8 {
+  position: absolute;
+  top: 543px;
+  left: 2171px;
+  width: 733px;
+  font-family: "Polin", Helvetica;
+  font-weight: 400;
+  color: #000000;
+  font-size: 34px;
+  text-align: justify;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .img {
+  position: absolute;
+  top: 1124px;
+  left: 894px;
+  width: 161px;
+  height: 161px;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.frame .text-wrapper-9 {
+  position: absolute;
+  top: 1216px;
+  left: 332px;
+  width: 817px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 45px;
+  letter-spacing: 0;
+  line-height: 40px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .text-wrapper-10 {
+  position: absolute;
+  top: 1252px;
+  left: 332px;
+  width: 817px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 31px;
+  letter-spacing: 0;
+  line-height: 40px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .group-2 {
+  position: absolute;
+  top: 1493px;
+  left: 507px;
+  width: 907px;
+  height: 411px;
+}
+
+.frame .text-wrapper-11 {
+  position: absolute;
+  top: 330px;
+  left: 609px;
+  width: 292px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 40px;
+  text-align: center;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-12 {
+  position: absolute;
+  top: 330px;
+  left: 0;
+  width: 242px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 40px;
+  text-align: center;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .text-wrapper-13 {
+  position: absolute;
+  top: 0;
+  left: 202px;
+  width: 429px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 56px;
+  text-align: center;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .element-3 {
+  top: 1561px;
+  left: 785px;
+  width: 303px;
+  height: 304px;
+  position: absolute;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.frame .text-wrapper-14 {
+  position: absolute;
+  top: 159px;
+  left: 1098px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #2f5388;
+  font-size: 175.4px;
+  text-align: left;
+  letter-spacing: 0;
+  line-height: 175.4px;
+  white-space: nowrap;
+  direction: rtl;
+  z-index: 2;
+}
+
+.frame .element-4 {
+  position: absolute;
+  top: 1583px;
+  left: 500px;
+  width: 257px;
+  height: 257px;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.frame .header-section {
+  position: relative;
+}
+
+.frame .motto-section {
+  position: relative;
+}
+
+.frame .main-content {
+  position: relative;
+}
+
+.frame .article-header {
+  position: relative;
+}
+
+.frame .article-columns {
+  position: relative;
+}
+
+.frame .article-column {
+  position: relative;
+}
+
+.frame .article-footer {
+  position: relative;
+}
+
+.frame .halacha-section {
+  position: relative;
+}
+
+.frame .halacha-content {
+  position: relative;
+}
+
+.frame .halacha-item {
+  position: relative;
+}
+
+.frame .contact-section {
+  position: relative;
+}
+
+.frame .page-footer {
+  position: relative;
+}
+
+.frame .credits {
+  position: absolute;
+  top: 2161px;
+  left: 20px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 32px;
+  text-align: left;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+  white-space: nowrap;
+}
+
+.frame .element-qr {
+  top: 1580px;
+  left: 1120px;
+  width: 267px;
+  height: 267px;
+  position: absolute;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.frame .group-2 a {
+  text-decoration: none;
+  color: #1c4080;
+  display: block;
+}
+
+.frame .group-2 a:hover {
+  text-decoration: underline;
+}
+
+.frame .group-2 a:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
