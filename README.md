@@ -85,7 +85,7 @@ shk-kalifa/
 │   │   │   ├── halacha/      # הלכה יומית
 │   │   │   └── zmanim/       # זמני תפילה
 │   │   ├── claim/            # מסך שיוך לוח
-│   │   ├── display/           # מסך תצוגה
+│   │   ├── display/          # מסך תצוגה
 │   │   └── page.tsx          # דף בית
 │   └── utils/
 │       └── BoardManager.ts   # ניהול מידע לוח
