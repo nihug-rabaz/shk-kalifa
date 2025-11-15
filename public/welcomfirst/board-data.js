@@ -32,6 +32,41 @@ class BoardDataLoader {
     }
   }
 
+  mergeData(existing, newData) {
+    if (!existing) return newData;
+    if (!newData) return existing;
+    
+    const merged = { ...existing };
+    
+    if (newData.boardInfo) {
+      merged.boardInfo = { ...existing.boardInfo, ...newData.boardInfo };
+    }
+    
+    if (newData.theme) {
+      merged.theme = { ...existing.theme, ...newData.theme };
+    }
+    
+    if (newData.background) {
+      merged.background = { ...existing.background, ...newData.background };
+    }
+    
+    if (Array.isArray(newData.prayers)) {
+      merged.prayers = newData.prayers;
+    }
+    
+    if (Array.isArray(newData.updates)) {
+      const existingUpdateIds = new Set((existing.updates || []).map(u => u.id || u.title));
+      const newUpdates = newData.updates.filter(u => !existingUpdateIds.has(u.id || u.title));
+      merged.updates = [...(existing.updates || []), ...newUpdates];
+    }
+    
+    if (newData.shuttleTimes) {
+      merged.shuttleTimes = { ...existing.shuttleTimes, ...newData.shuttleTimes };
+    }
+    
+    return merged;
+  }
+
   async loadContent() {
     try {
       const boardId = this.getBoardId();
@@ -43,13 +78,15 @@ class BoardDataLoader {
       const contentKey = `shchakim_content_${boardId}`;
       const contentTimestampKey = `shchakim_content_timestamp_${boardId}`;
       
+      let cachedData = null;
       const cachedContent = localStorage.getItem(contentKey);
       
       if (cachedContent) {
         try {
-          const data = JSON.parse(cachedContent);
-          this.content = data;
-          await this.updateAll(data);
+          cachedData = JSON.parse(cachedContent);
+          this.content = cachedData;
+          await this.updateAll(cachedData);
+          console.log('[CACHE] Loaded content from local storage');
         } catch (e) {
           console.warn('Failed to parse cached content', e);
         }
@@ -67,20 +104,52 @@ class BoardDataLoader {
             signal: controller.signal
           });
           clearTimeout(timeoutId);
+          
           if (response.ok) {
-            const data = await response.json();
-            this.content = data;
-            localStorage.setItem(contentKey, JSON.stringify(data));
+            const newData = await response.json();
+            const mergedData = this.mergeData(cachedData, newData);
+            
+            this.content = mergedData;
+            localStorage.setItem(contentKey, JSON.stringify(mergedData));
             localStorage.setItem(contentTimestampKey, Date.now().toString());
             
-            await this.updateAll(data);
+            console.log('[ONLINE] Loaded and merged content from server');
+            await this.updateAll(mergedData);
+          } else {
+            console.warn('[ONLINE] Server response not OK:', response.status);
+            if (cachedData) {
+              console.log('[FALLBACK] Using cached data due to server error');
+            }
           }
         } catch (error) {
-          console.warn('Error loading content from server:', error);
+          console.warn('[ONLINE] Error loading content from server:', error);
+          if (cachedData) {
+            console.log('[FALLBACK] Using cached data due to connection error');
+          }
+        }
+      } else {
+        console.log('[OFFLINE] No connection, using cached data');
+        if (cachedData) {
+          await this.updateAll(cachedData);
         }
       }
     } catch (error) {
       console.error('Error loading content:', error);
+      const boardId = this.getBoardId();
+      if (boardId) {
+        const contentKey = `shchakim_content_${boardId}`;
+        const cachedContent = localStorage.getItem(contentKey);
+        if (cachedContent) {
+          try {
+            const data = JSON.parse(cachedContent);
+            this.content = data;
+            await this.updateAll(data);
+            console.log('[FALLBACK] Using cached data after error');
+          } catch (e) {
+            console.error('Failed to load cached data after error:', e);
+          }
+        }
+      }
     }
   }
 
@@ -567,17 +636,41 @@ class BoardDataLoader {
   }
 
   setupPeriodicUpdates() {
-    setInterval(async () => {
-      const isOnline = await this.checkOnline();
-      if (isOnline) {
-        await this.loadContent();
-      }
+    this.updateInterval = setInterval(async () => {
+      await this.loadContent();
     }, 60000);
+  }
+
+  setupOnlineOfflineListeners() {
+    window.addEventListener('online', async () => {
+      console.log('[NETWORK] Connection restored, reloading content');
+      await this.loadContent();
+    });
+
+    window.addEventListener('offline', () => {
+      console.log('[NETWORK] Connection lost, using cached data');
+      const boardId = this.getBoardId();
+      if (boardId) {
+        const contentKey = `shchakim_content_${boardId}`;
+        const cachedContent = localStorage.getItem(contentKey);
+        if (cachedContent) {
+          try {
+            const data = JSON.parse(cachedContent);
+            this.content = data;
+            this.updateAll(data);
+            console.log('[OFFLINE] Loaded content from cache');
+          } catch (e) {
+            console.warn('[OFFLINE] Failed to load cached content:', e);
+          }
+        }
+      }
+    });
   }
 
   start() {
     this.loadContent();
     this.setupPeriodicUpdates();
+    this.setupOnlineOfflineListeners();
   }
 
   stop() {

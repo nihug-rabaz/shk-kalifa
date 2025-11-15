@@ -325,7 +325,7 @@
 .frame .element {
   position: absolute;
   top: 767px;
-  left: 346px;
+  left: 407px;
   font-family: "Ploni ML v2 AAA-Bold", Helvetica;
   font-weight: 400;
   color: #1c4080;
@@ -507,6 +507,7 @@
   width: 748px;
   height: 1061px;
   object-fit: cover;
+  border-radius: 80px;
 }
 /* Inject original CSS code here */
 
@@ -837,7 +838,7 @@
 .frame .element {
   position: absolute;
   top: 767px;
-  left: 346px;
+  left: 407px;
   font-family: "Ploni ML v2 AAA-Bold", Helvetica;
   font-weight: 400;
   color: #1c4080;
@@ -858,6 +859,8 @@
   font-weight: 500;
   color: #1c4080;
   text-decoration: none;
+  text-align: center;
+  display: block;
 }
 
 .frame .text-wrapper-20:hover {
@@ -1030,6 +1033,7 @@
   width: 748px;
   height: 1061px;
   object-fit: cover;
+  border-radius: 80px;
 }
 
 .frame header {
@@ -1046,6 +1050,7 @@
 
 .frame .contact-item {
   margin-bottom: 86.5px;
+  text-align: center;
 }
 
 .frame .prayer-times-section {
@@ -1061,6 +1066,10 @@
 
 .frame .safety-section {
   position: relative;
+}
+
+.frame .safety-section img {
+  border-radius: 80px;
 }
 
 .frame .yeshiva-days-section {

@@ -26,6 +26,31 @@ class BoardDataLoader {
     }
   }
 
+  mergeData(existing, newData) {
+    if (!existing) return newData;
+    if (!newData) return existing;
+    
+    const merged = { ...existing };
+    
+    if (newData.boardInfo) {
+      merged.boardInfo = { ...existing.boardInfo, ...newData.boardInfo };
+    }
+    
+    if (newData.theme) {
+      merged.theme = { ...existing.theme, ...newData.theme };
+    }
+    
+    if (newData.background) {
+      merged.background = { ...existing.background, ...newData.background };
+    }
+    
+    if (newData.rabzrLetter) {
+      merged.rabzrLetter = newData.rabzrLetter;
+    }
+    
+    return merged;
+  }
+
   async loadContent() {
     try {
       const boardId = this.getBoardId();
@@ -37,13 +62,15 @@ class BoardDataLoader {
       const contentKey = `shchakim_content_${boardId}`;
       const contentTimestampKey = `shchakim_content_timestamp_${boardId}`;
       
+      let cachedData = null;
       const cachedContent = localStorage.getItem(contentKey);
       
       if (cachedContent) {
         try {
-          const data = JSON.parse(cachedContent);
-          this.content = data;
-          this.updateAll(data);
+          cachedData = JSON.parse(cachedContent);
+          this.content = cachedData;
+          this.updateAll(cachedData);
+          console.log('[CACHE] Loaded content from local storage');
         } catch (e) {
           console.warn('Failed to parse cached content', e);
         }
@@ -61,20 +88,52 @@ class BoardDataLoader {
             signal: controller.signal
           });
           clearTimeout(timeoutId);
+          
           if (response.ok) {
-            const data = await response.json();
-            this.content = data;
-            localStorage.setItem(contentKey, JSON.stringify(data));
+            const newData = await response.json();
+            const mergedData = this.mergeData(cachedData, newData);
+            
+            this.content = mergedData;
+            localStorage.setItem(contentKey, JSON.stringify(mergedData));
             localStorage.setItem(contentTimestampKey, Date.now().toString());
             
-            this.updateAll(data);
+            console.log('[ONLINE] Loaded and merged content from server');
+            this.updateAll(mergedData);
+          } else {
+            console.warn('[ONLINE] Server response not OK:', response.status);
+            if (cachedData) {
+              console.log('[FALLBACK] Using cached data due to server error');
+            }
           }
         } catch (error) {
-          console.warn('Error loading content from server:', error);
+          console.warn('[ONLINE] Error loading content from server:', error);
+          if (cachedData) {
+            console.log('[FALLBACK] Using cached data due to connection error');
+          }
+        }
+      } else {
+        console.log('[OFFLINE] No connection, using cached data');
+        if (cachedData) {
+          this.updateAll(cachedData);
         }
       }
     } catch (error) {
       console.error('Error loading content:', error);
+      const boardId = this.getBoardId();
+      if (boardId) {
+        const contentKey = `shchakim_content_${boardId}`;
+        const cachedContent = localStorage.getItem(contentKey);
+        if (cachedContent) {
+          try {
+            const data = JSON.parse(cachedContent);
+            this.content = data;
+            this.updateAll(data);
+            console.log('[FALLBACK] Using cached data after error');
+          } catch (e) {
+            console.error('Failed to load cached data after error:', e);
+          }
+        }
+      }
     }
   }
 
@@ -140,22 +199,77 @@ class BoardDataLoader {
 
   async loadHalacha() {
     try {
-      const date = new Date().toISOString().slice(0, 10);
-      console.log('[HALACHA] Loading halacha for date:', date);
-      const response = await fetch(`/api/halacha/daily?date=${date}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-store' }
-      });
+      const boardId = this.getBoardId();
+      const halachaKey = `shchakim_halacha_${boardId}`;
+      const halachaTimestampKey = `shchakim_halacha_timestamp_${boardId}`;
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[HALACHA] Received data:', data);
-        this.updateHalacha(data);
+      let cachedHalacha = null;
+      const cachedHalachaContent = localStorage.getItem(halachaKey);
+      
+      if (cachedHalachaContent) {
+        try {
+          cachedHalacha = JSON.parse(cachedHalachaContent);
+          this.updateHalacha(cachedHalacha);
+          console.log('[HALACHA] Loaded halacha from cache');
+        } catch (e) {
+          console.warn('[HALACHA] Failed to parse cached halacha:', e);
+        }
+      }
+      
+      const isOnline = await this.checkOnline();
+      if (isOnline) {
+        try {
+          const date = new Date().toISOString().slice(0, 10);
+          console.log('[HALACHA] Loading halacha for date:', date);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+          const response = await fetch(`/api/halacha/daily?date=${date}`, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-store' },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[HALACHA] Loaded halacha from server');
+            localStorage.setItem(halachaKey, JSON.stringify(data));
+            localStorage.setItem(halachaTimestampKey, Date.now().toString());
+            this.updateHalacha(data);
+          } else {
+            console.warn('[HALACHA] Failed to load halacha:', response.status);
+            if (cachedHalacha) {
+              console.log('[HALACHA] Using cached halacha due to server error');
+            }
+          }
+        } catch (error) {
+          console.warn('[HALACHA] Error loading halacha from server:', error);
+          if (cachedHalacha) {
+            console.log('[HALACHA] Using cached halacha due to connection error');
+          }
+        }
       } else {
-        console.error('[HALACHA] Failed to load halacha, status:', response.status);
+        console.log('[HALACHA] No connection, using cached halacha');
+        if (cachedHalacha) {
+          this.updateHalacha(cachedHalacha);
+        }
       }
     } catch (error) {
       console.error('[HALACHA] Error loading halacha:', error);
+      const boardId = this.getBoardId();
+      if (boardId) {
+        const halachaKey = `shchakim_halacha_${boardId}`;
+        const cachedHalachaContent = localStorage.getItem(halachaKey);
+        if (cachedHalachaContent) {
+          try {
+            const data = JSON.parse(cachedHalachaContent);
+            this.updateHalacha(data);
+            console.log('[HALACHA] Using cached halacha after error');
+          } catch (e) {
+            console.error('[HALACHA] Failed to load cached halacha after error:', e);
+          }
+        }
+      }
     }
   }
 
@@ -286,22 +400,59 @@ class BoardDataLoader {
   }
 
   setupPeriodicUpdates() {
-    setInterval(async () => {
-      const isOnline = await this.checkOnline();
-      if (isOnline) {
-        await this.loadContent();
-        await this.loadHalacha();
-      }
+    this.updateInterval = setInterval(async () => {
+      await this.loadContent();
+      await this.loadHalacha();
     }, 60000);
+  }
+
+  setupOnlineOfflineListeners() {
+    window.addEventListener('online', async () => {
+      console.log('[NETWORK] Connection restored, reloading content');
+      await this.loadContent();
+      await this.loadHalacha();
+    });
+
+    window.addEventListener('offline', () => {
+      console.log('[NETWORK] Connection lost, using cached data');
+      const boardId = this.getBoardId();
+      if (boardId) {
+        const contentKey = `shchakim_content_${boardId}`;
+        const halachaKey = `shchakim_halacha_${boardId}`;
+        
+        const cachedContent = localStorage.getItem(contentKey);
+        if (cachedContent) {
+          try {
+            const data = JSON.parse(cachedContent);
+            this.content = data;
+            this.updateAll(data);
+            console.log('[OFFLINE] Loaded content from cache');
+          } catch (e) {
+            console.warn('[OFFLINE] Failed to load cached content:', e);
+          }
+        }
+        
+        const cachedHalacha = localStorage.getItem(halachaKey);
+        if (cachedHalacha) {
+          try {
+            const data = JSON.parse(cachedHalacha);
+            this.updateHalacha(data);
+            console.log('[OFFLINE] Loaded halacha from cache');
+          } catch (e) {
+            console.warn('[OFFLINE] Failed to load cached halacha:', e);
+          }
+        }
+      }
+    });
   }
 
   start() {
     this.loadContent();
-    // טעינת הלכה יומית - מחכה קצת כדי לוודא שה-DOM נטען
     setTimeout(() => {
       this.loadHalacha();
     }, 500);
     this.setupPeriodicUpdates();
+    this.setupOnlineOfflineListeners();
   }
 
   stop() {

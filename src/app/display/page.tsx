@@ -14,23 +14,67 @@ export default function DisplayPage() {
   const switchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const checkLinked = () => {
+    const checkLinked = async () => {
       try {
         const boardInfo = BoardManager.getBoardInfo();
         const id = BoardManager.getBoardId();
         setBoardId(id);
         
-        const linked = boardInfo?.linked === true || 
-                      boardInfo?.linked === 'true' || 
-                      (boardInfo?.logical_board_id && boardInfo.logical_board_id > 0);
-        
-        if (!linked) {
+        if (!id) {
           router.push('/claim');
           return;
         }
         
-        setIsLinked(true);
-        setIsLoading(false);
+        try {
+          const response = await fetch(`/api/check-claim-status?board_id=${id}`);
+          if (response.ok) {
+            const data = await response.json();
+            const isLinked = data.linked === true || 
+                           data.linked === 'true' || 
+                           (data.logical_board_id && data.logical_board_id > 0);
+            
+            if (!isLinked) {
+              BoardManager.clearBoardInfo();
+              router.push('/claim');
+              return;
+            }
+            
+            const updatedInfo = {
+              linked: true,
+              user_id: data.user_id,
+              name: data.name,
+              logical_board_id: data.logical_board_id
+            };
+            BoardManager.setBoardInfo(updatedInfo);
+            setIsLinked(true);
+            setIsLoading(false);
+          } else {
+            const linked = boardInfo?.linked === true || 
+                          boardInfo?.linked === 'true' || 
+                          (boardInfo?.logical_board_id && boardInfo.logical_board_id > 0);
+            
+            if (!linked) {
+              router.push('/claim');
+              return;
+            }
+            
+            setIsLinked(true);
+            setIsLoading(false);
+          }
+        } catch (error) {
+          console.warn('Error checking board status from server:', error);
+          const linked = boardInfo?.linked === true || 
+                        boardInfo?.linked === 'true' || 
+                        (boardInfo?.logical_board_id && boardInfo.logical_board_id > 0);
+          
+          if (!linked) {
+            router.push('/claim');
+            return;
+          }
+          
+          setIsLinked(true);
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error('Error checking board info:', error);
         router.push('/claim');
@@ -38,6 +82,12 @@ export default function DisplayPage() {
     };
 
     checkLinked();
+    
+    const statusCheckInterval = setInterval(checkLinked, 30000);
+    
+    return () => {
+      clearInterval(statusCheckInterval);
+    };
   }, [router]);
 
   useEffect(() => {
