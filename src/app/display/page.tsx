@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import BoardManager from '@/utils/BoardManager';
 
@@ -9,11 +9,16 @@ export default function DisplayPage() {
   const [currentBoard, setCurrentBoard] = useState(1);
   const [isLinked, setIsLinked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [boardId, setBoardId] = useState<string>('');
+  const boardTimesRef = useRef<{ [key: number]: number }>({ 1: 60000, 2: 60000 });
+  const switchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const checkLinked = () => {
       try {
         const boardInfo = BoardManager.getBoardInfo();
+        const id = BoardManager.getBoardId();
+        setBoardId(id);
         
         const linked = boardInfo?.linked === true || 
                       boardInfo?.linked === 'true' || 
@@ -38,12 +43,52 @@ export default function DisplayPage() {
   useEffect(() => {
     if (!isLinked) return;
 
-    const interval = setInterval(() => {
-      setCurrentBoard(prev => prev === 1 ? 2 : 1);
-    }, 10000);
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'BOARD_DISPLAY_TIME') {
+        const iframeRefs = (window as any).__iframeRefs || {};
+        let boardNum = 1;
+        
+        if (iframeRefs[1] && event.source === iframeRefs[1].contentWindow) {
+          boardNum = 1;
+        } else if (iframeRefs[2] && event.source === iframeRefs[2].contentWindow) {
+          boardNum = 2;
+        }
+        
+        const totalTime = event.data.totalTime || 60000;
+        boardTimesRef.current[boardNum] = totalTime;
+        console.log(`[DISPLAY] Board ${boardNum} display time updated: ${totalTime}ms`);
+      }
+    };
 
-    return () => clearInterval(interval);
-  }, [isLinked]);
+    window.addEventListener('message', handleMessage);
+
+    const scheduleNextSwitch = () => {
+      if (switchTimeoutRef.current) {
+        clearTimeout(switchTimeoutRef.current);
+      }
+
+      const currentTime = boardTimesRef.current[currentBoard] || 60000;
+      console.log(`[DISPLAY] Scheduling switch after ${currentTime}ms for board ${currentBoard}`);
+
+      switchTimeoutRef.current = setTimeout(() => {
+        setCurrentBoard(prev => {
+          const nextBoard = prev === 1 ? 2 : 1;
+          console.log(`[DISPLAY] Switching from board ${prev} to ${nextBoard}`);
+          scheduleNextSwitch();
+          return nextBoard;
+        });
+      }, currentTime);
+    };
+
+    scheduleNextSwitch();
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      if (switchTimeoutRef.current) {
+        clearTimeout(switchTimeoutRef.current);
+      }
+    };
+  }, [isLinked, currentBoard]);
 
   if (isLoading || !isLinked) {
     return (
@@ -84,7 +129,14 @@ export default function DisplayPage() {
         justifyContent: 'center'
       }}>
         <iframe
-          src={`/api/welcome-html?board=1`}
+          ref={(el) => {
+            if (el) {
+              const iframeRefs = (window as any).__iframeRefs || {};
+              iframeRefs[1] = el;
+              (window as any).__iframeRefs = iframeRefs;
+            }
+          }}
+          src={`/api/welcome-html?board=1&board_id=${boardId}`}
           style={{
             width: '100%',
             height: '100%',
@@ -110,7 +162,14 @@ export default function DisplayPage() {
         justifyContent: 'center'
       }}>
         <iframe
-          src={`/api/welcome-html?board=2`}
+          ref={(el) => {
+            if (el) {
+              const iframeRefs = (window as any).__iframeRefs || {};
+              iframeRefs[2] = el;
+              (window as any).__iframeRefs = iframeRefs;
+            }
+          }}
+          src={`/api/welcome-html?board=2&board_id=${boardId}`}
           style={{
             width: '100%',
             height: '100%',

@@ -2,7 +2,7 @@
   position: relative;
   width: 4000px;
   height: 2251px;
-  background-color: #ffffff;
+  background-color: transparent;
 }
 
 .frame .linked-file {
@@ -99,6 +99,7 @@
   line-height: 79.2px;
   white-space: nowrap;
   direction: rtl;
+  z-index: 99;
 }
 
 .frame .text-wrapper-3 {
@@ -130,6 +131,8 @@
   line-height: 79.2px;
   white-space: nowrap;
   direction: rtl;
+  border-bottom: none;
+  border: none;
 }
 
 .frame .text-wrapper-4 {
@@ -343,7 +346,7 @@
   position: relative;
   width: 4000px;
   height: 2251px;
-  background-color: #ffffff;
+  background-color: transparent;
 }
 
 .frame .linked-file {
@@ -440,6 +443,7 @@
   line-height: 79.2px;
   white-space: nowrap;
   direction: rtl;
+  z-index: 99;
 }
 
 .frame .text-wrapper-3 {
@@ -471,6 +475,8 @@
   line-height: 79.2px;
   white-space: nowrap;
   direction: rtl;
+  border-bottom: none;
+  border: none;
 }
 
 .frame .text-wrapper-4 {
@@ -704,15 +710,155 @@
 }
 
 .frame .halacha-section {
-  position: relative;
+  position: absolute;
+  top: 1374px;
+  left: 0;
+  width: 100%;
+  z-index: 99;
+  visibility: visible;
+  display: block;
+}
+
+.frame .halacha-section .text-wrapper-2 {
+  position: absolute;
+  top: 0;
+  left: 2654px;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 79.2px;
+  text-align: left;
+  letter-spacing: -0.23px;
+  line-height: 79.2px;
+  white-space: nowrap;
+  direction: rtl;
+  z-index: 99;
 }
 
 .frame .halacha-content {
   position: relative;
+  width: 100%;
+  z-index: 99;
+  visibility: visible;
+  display: block;
 }
 
 .frame .halacha-item {
   position: relative;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  z-index: 99;
+  visibility: visible;
+  display: block;
+  width: 589px;
+  max-height: 340px;
+}
+
+.frame .halacha-item:first-child {
+  position: absolute;
+  top: 109px;
+  left: calc(50.00% + 444px);
+}
+
+.frame .halacha-item:last-child {
+  position: absolute;
+  top: 109px;
+  left: calc(50.00% - 326px);
+}
+
+.frame .halacha-item p.text-wrapper-4 {
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 100%;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 52px;
+  letter-spacing: 0;
+  line-height: 1.4;
+  direction: rtl;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-height: 340px;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  z-index: 99;
+  white-space: normal;
+}
+
+.frame .halacha-item p.text-wrapper-4 .halacha-text-wrapper {
+  display: block;
+  width: 100%;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 52px;
+  line-height: 1.4;
+  direction: rtl;
+}
+
+@keyframes scrollText {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.frame .halacha-item p.text-wrapper-4.scrolling .halacha-text-wrapper {
+  animation: scrollText var(--scroll-duration, 30s) linear infinite;
+}
+
+.frame .halacha-item p.text-wrapper-5 {
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 100%;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 52px;
+  letter-spacing: 0;
+  line-height: 1.4;
+  direction: rtl;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-height: 340px;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  z-index: 99;
+  white-space: normal;
+}
+
+.frame .halacha-item p.text-wrapper-5 .halacha-text-wrapper {
+  display: block;
+  width: 100%;
+  font-family: "Ploni ML v2 AAA", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 52px;
+  line-height: 1.4;
+  direction: rtl;
+}
+
+.frame .halacha-item p.text-wrapper-5.scrolling .halacha-text-wrapper {
+  animation: scrollText var(--scroll-duration, 30s) linear infinite;
+}
+
+@keyframes scrollText {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
 }
 
 .frame .contact-section {

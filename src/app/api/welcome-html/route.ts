@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const board = searchParams.get('board');
+    const board_id = searchParams.get('board_id');
 
     if (!board || (board !== '1' && board !== '2')) {
       return NextResponse.json(
@@ -35,6 +36,17 @@ export async function GET(request: NextRequest) {
       htmlContent = htmlContent.replace(/src="responsive\.js"/g, `src="${basePath}/responsive.js"`);
       htmlContent = htmlContent.replace(/src="time\.js"/g, `src="${basePath}/time.js"`);
 
+      if (board_id) {
+        const dataScript = `
+          <script>
+            window.BOARD_ID = '${board_id}';
+            window.BOARD_DATA_API = '/api/board-data?board_id=${board_id}';
+          </script>
+          <script src="${basePath}/board-data.js"></script>
+        `;
+        htmlContent = htmlContent.replace('</head>', `${dataScript}</head>`);
+      }
+
       return new NextResponse(htmlContent, {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
@@ -55,4 +67,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

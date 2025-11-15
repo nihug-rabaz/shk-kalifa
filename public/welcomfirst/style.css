@@ -419,6 +419,8 @@
   line-height: 79.2px;
   white-space: nowrap;
   direction: rtl;
+  border-bottom: none;
+  border: none;
 }
 
 .frame .text-wrapper-25 {
@@ -941,6 +943,8 @@
   line-height: 79.2px;
   white-space: nowrap;
   direction: rtl;
+  border-bottom: none;
+  border: none;
 }
 
 .frame .text-wrapper-25 {

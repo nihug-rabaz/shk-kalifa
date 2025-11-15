@@ -1,73 +1,117 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-const API_BASE_URL = 'https://shchakim.rabaz.co.il/api';
+type BoardInfo = {
+  linked: boolean;
+  user_id?: number;
+  name?: string;
+  display_name?: string;
+  displayName?: string;
+  base_name?: string;
+  base_description?: string | null;
+  board_bid?: string;
+  location?: string;
+  logical_board_id?: number;
+  prayers?: Array<{
+    id: number;
+    title: string;
+    timeType: 'fixed' | 'relative';
+    fixedTime?: string | null;
+    relativeBase?: string | null;
+    offsetMinutes?: number | null;
+    dayOfWeek: 'weekday' | 'shabbat';
+    background?: string;
+    createdAt?: string;
+  }>;
+  updates?: Array<any>;
+};
 
-export async function GET(request: NextRequest) {
+const API_BASE = 'https://shchakim.rabaz.co.il';
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const boardId = url.searchParams.get('id');
+
+  if (!boardId) {
+    return NextResponse.json({ error: 'board id required' }, { status: 400 });
+  }
+
+  const targetUrl = `${API_BASE}/api/board-info?id=${encodeURIComponent(boardId)}`;
+  console.log(`[PROXY] Board-info GET: proxying request to ${targetUrl}`);
+
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Missing board id parameter' },
-        { status: 400 }
-      );
-    }
-
-    const response = await fetch(`${API_BASE_URL}/board-info?id=${id}`, {
+    const response = await fetch(targetUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
+      cache: 'no-store'
     });
 
-    const data = await response.json();
+    console.log(`[PROXY] Board-info GET: response status ${response.status} for board ${boardId}`);
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: data.error || 'Failed to fetch board info' },
-        { status: response.status }
-      );
+      const errorText = await response.text();
+      console.log(`[PROXY] Board-info GET: error response: ${errorText}`);
+      return NextResponse.json({ linked: false }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache'
+        }
+      });
     }
 
-    return NextResponse.json(data);
+    const data: BoardInfo = await response.json();
+    console.log(`[PROXY] Board-info GET: success response:`, JSON.stringify(data));
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache'
+      }
+    });
   } catch (error) {
-    console.error('Board info API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error(`[PROXY] Board-info GET: error proxying request for board ${boardId}:`, error);
+    return NextResponse.json({ linked: false }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache'
+      }
+    });
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => null) as { board_id?: string; logical_board_id?: number; user_id?: number; name?: string } | null;
 
-    const response = await fetch(`${API_BASE_URL}/board-info`, {
+  if (!body?.board_id || !body?.logical_board_id || !body?.user_id) {
+    return NextResponse.json({ error: 'board_id, logical_board_id and user_id required' }, { status: 400 });
+  }
+
+  const targetUrl = `${API_BASE}/api/board-info`;
+  console.log(`[PROXY] Board-info POST: proxying request to ${targetUrl}`, JSON.stringify(body));
+
+  try {
+    const response = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      cache: 'no-store'
     });
 
-    const data = await response.json();
+    console.log(`[PROXY] Board-info POST: response status ${response.status}`);
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: data.error || 'Failed to update board info' },
-        { status: response.status }
-      );
+      const errorData = await response.json().catch(() => ({ error: 'Failed to claim board' }));
+      console.log(`[PROXY] Board-info POST: error response:`, JSON.stringify(errorData));
+      return NextResponse.json(errorData, { status: response.status });
     }
 
+    const data = await response.json();
+    console.log(`[PROXY] Board-info POST: success response:`, JSON.stringify(data));
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Board info API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error(`[PROXY] Board-info POST: error proxying request:`, error);
+    return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
   }
 }
-
