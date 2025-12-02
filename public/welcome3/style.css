@@ -256,7 +256,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 51.9px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -271,7 +271,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 51.9px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -286,7 +286,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 51.9px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -301,7 +301,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 79.2px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -316,7 +316,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 79.2px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -333,7 +333,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 86.5px;
-  direction: rtl;
+  direction: ltr;
 }
 
 .frame .span {
@@ -354,7 +354,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 71.6px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -369,7 +369,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 71.6px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -384,7 +384,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 71.6px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -399,7 +399,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 71.6px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -418,7 +418,7 @@
   letter-spacing: 0;
   line-height: 79.2px;
   white-space: nowrap;
-  direction: rtl;
+  direction: ltr;
   border-bottom: none;
   border: none;
 }
@@ -437,7 +437,7 @@
   position: absolute;
   text-align: left;
   letter-spacing: 0;
-  direction: rtl;
+  direction: ltr;
   z-index: 1;
 }
 
@@ -453,7 +453,7 @@
   position: absolute;
   text-align: left;
   letter-spacing: 0;
-  direction: rtl;
+  direction: ltr;
   z-index: 2;
 }
 
@@ -481,7 +481,7 @@
   position: absolute;
   text-align: right;
   letter-spacing: 0;
-  direction: rtl;
+  direction: ltr;
 }
 
 .frame .text-wrapper-28 {
@@ -497,7 +497,7 @@
   text-align: left;
   letter-spacing: 0;
   z-index: 99;
-  direction: rtl;
+  direction: ltr;
 }
 
 .frame .element-dadfb-ec-b {
@@ -546,7 +546,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 120.3px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -561,7 +561,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 79.2px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -576,7 +576,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 79.2px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -599,7 +599,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 79.2px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -614,7 +614,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 79.2px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -637,7 +637,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 79.2px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -769,7 +769,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 51.9px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -784,7 +784,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 51.9px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -799,7 +799,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 51.9px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -814,7 +814,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 79.2px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -829,7 +829,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 79.2px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -846,7 +846,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 86.5px;
-  direction: rtl;
+  direction: ltr;
   font-style: normal;
 }
 
@@ -881,7 +881,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 71.6px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -896,7 +896,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 71.6px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -911,7 +911,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 71.6px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -926,7 +926,7 @@
   text-align: left;
   letter-spacing: 0;
   line-height: 71.6px;
-  direction: rtl;
+  direction: ltr;
   position: absolute;
   color: #1c4080;
   white-space: nowrap;
@@ -945,7 +945,7 @@
   letter-spacing: 0;
   line-height: 79.2px;
   white-space: nowrap;
-  direction: rtl;
+  direction: ltr;
   border-bottom: none;
   border: none;
 }
@@ -964,7 +964,7 @@
   position: absolute;
   text-align: left;
   letter-spacing: 0;
-  direction: rtl;
+  direction: ltr;
   z-index: 1;
 }
 
@@ -980,7 +980,7 @@
   position: absolute;
   text-align: left;
   letter-spacing: 0;
-  direction: rtl;
+  direction: ltr;
   z-index: 2;
 }
 
@@ -1008,7 +1008,7 @@
   position: absolute;
   text-align: right;
   letter-spacing: 0;
-  direction: rtl;
+  direction: ltr;
 }
 
 .frame .text-wrapper-28 {
@@ -1023,7 +1023,7 @@
   position: absolute;
   text-align: left;
   letter-spacing: 0;
-  direction: rtl;
+  direction: ltr;
 }
 
 .frame .element-dadfb-ec-b {
@@ -1116,6 +1116,6 @@
   color: #1c4080;
   text-align: left;
   white-space: nowrap;
-  direction: rtl;
+  direction: ltr;
   line-height: 79.2px;
 }

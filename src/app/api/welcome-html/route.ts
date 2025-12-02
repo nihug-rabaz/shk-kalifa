@@ -8,14 +8,14 @@ export async function GET(request: NextRequest) {
     const board = searchParams.get('board');
     const board_id = searchParams.get('board_id');
 
-    if (!board || (board !== '1' && board !== '2')) {
+    if (!board || (board !== '1' && board !== '2' && board !== '3')) {
       return NextResponse.json(
-        { error: 'Invalid board number. Use 1 or 2' },
+        { error: 'Invalid board number. Use 1, 2, or 3' },
         { status: 400 }
       );
     }
 
-    const welcomeDir = board === '1' ? 'welcomfirst' : 'welcome2';
+    const welcomeDir = board === '1' ? 'welcome1' : board === '2' ? 'welcome2' : 'welcome3';
     const htmlPath = join(process.cwd(), 'public', welcomeDir, 'index.html');
 
     try {
@@ -36,16 +36,14 @@ export async function GET(request: NextRequest) {
       htmlContent = htmlContent.replace(/src="responsive\.js"/g, `src="${basePath}/responsive.js"`);
       htmlContent = htmlContent.replace(/src="time\.js"/g, `src="${basePath}/time.js"`);
 
-      if (board_id) {
-        const dataScript = `
-          <script>
-            window.BOARD_ID = '${board_id}';
-            window.BOARD_DATA_API = '/api/board-data?board_id=${board_id}';
-          </script>
-          <script src="${basePath}/board-data.js"></script>
-        `;
-        htmlContent = htmlContent.replace('</head>', `${dataScript}</head>`);
-      }
+      const dataScript = `
+        <script>
+          ${board_id ? `window.BOARD_ID = '${board_id}';` : ''}
+          ${board_id ? `window.BOARD_DATA_API = '/api/board-data?board_id=${board_id}';` : ''}
+        </script>
+        <script src="${basePath}/board-data.js"></script>
+      `;
+      htmlContent = htmlContent.replace('</head>', `${dataScript}</head>`);
 
       return new NextResponse(htmlContent, {
         headers: {

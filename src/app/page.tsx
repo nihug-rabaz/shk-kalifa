@@ -17,7 +17,7 @@ export default function Home() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      direction: 'rtl',
+      direction: 'ltr',
       overflow: 'hidden'
     }}>
       <div style={{

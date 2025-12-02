@@ -195,14 +195,14 @@ class BoardDataLoader {
         },
         body: JSON.stringify({
           latitude: location.latitude,
-          longitude: location.longitude,
+          longitude: "-"+location.longitude,
           date: new Date().toISOString().slice(0, 10)
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        return data || null;
+        return data.times || {};
       }
     } catch (error) {
       console.warn('Error fetching zmanim:', error);
@@ -213,11 +213,26 @@ class BoardDataLoader {
   calculateRelativeTime(relativeBase, offsetMinutes, zmanimTimes) {
     if (!relativeBase || !zmanimTimes) return null;
 
-    const baseTime = (zmanimTimes.times || zmanimTimes)[relativeBase];
-    if (!baseTime) return null;
+    const baseKeyMap = {
+      stars_out: 'tzait',
+      stars_out_90: 'tzait90',
+      sunset: 'shkiya'
+    };
 
-    // המרת זמן ל-Date object
-    const [hours, minutes] = baseTime.split(':').map(Number);
+    const key = baseKeyMap[relativeBase] || relativeBase;
+    const raw = zmanimTimes[key];
+    if (!raw) return null;
+
+    let hours = 0;
+    let minutes = 0;
+
+    if (typeof raw === 'string') {
+      const timePart = raw.includes('T') ? raw.split('T')[1] : raw;
+      const [h, m] = timePart.split(':');
+      hours = Number(h) || 0;
+      minutes = Number(m) || 0;
+    }
+
     const baseDate = new Date();
     baseDate.setHours(hours, minutes, 0, 0);
 
@@ -231,72 +246,22 @@ class BoardDataLoader {
   }
 
   async updatePrayerTimes(data) {
-    console.log('[PRAYERS] Welcome2 has no prayer section, skipping');
-    await this.updateHalacha(data);
-  }
-
-  async updateHalacha(data) {
-    try {
-      const response = await fetch('/api/halacha/daily');
-      if (response.ok) {
-        const halachaData = await response.json();
-        const halachaItems = halachaData.items || [];
-        
-        if (halachaItems.length > 0) {
-          const halachaContainer = document.querySelector('.div-wrapper-3');
-          if (halachaContainer) {
-            // נוודא שיש <p> בפנים, ואם לא - ניצור אחד
-            let halachaContent = halachaContainer.querySelector('p.text-wrapper-10');
-            if (!halachaContent) {
-              halachaContent = document.createElement('p');
-              halachaContent.className = 'text-wrapper-10 sliding-text';
-              halachaContainer.appendChild(halachaContent);
-            } else {
-              // ודא שיש גם את קלאס האנימציה
-              if (!halachaContent.classList.contains('sliding-text')) {
-                halachaContent.classList.add('sliding-text');
-              }
-            }
-
-            const combined = halachaItems
-              .slice(0, 2)
-              .map(item => item.summary || item.text || item.content || '')
-              .filter(Boolean)
-              .join('<br/><br/>');
-            
-            if (combined) {
-              halachaContent.innerHTML = combined;
-            }
-          }
-        }
-
-        // עדכון כותרת האגרת לפי פרשת השבוע מהזמנים
-        try {
-          const location = data?.boardInfo?.location;
-          if (location && location.latitude && location.longitude) {
-            const zmanim = await this.fetchZmanim(location);
-            if (zmanim) {
-              const parasha =
-                zmanim.parasha ||
-                zmanim.parsha ||
-                zmanim.torahPortion ||
-                (zmanim.hebrew && zmanim.hebrew.parasha);
-              if (parasha) {
-                const titleElement = document.querySelector('.div-2 .div-wrapper .p');
-                if (titleElement) {
-                  titleElement.textContent = `אגרת רבצ\"ר - פרשת ${parasha}`;
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('[PARASHA] Failed to update parasha title', e);
-        }
-      }
-    } catch (error) {
-      console.warn('[HALACHA] Error updating halacha:', error);
+    console.log('[PRAYERS] Updating prayer times with data:', data);
+    
+    if (!data?.prayers || !Array.isArray(data.prayers)) {
+      console.warn('[PRAYERS] No prayers data found');
+      return;
     }
-  
+
+    console.log('[PRAYERS] Found prayers:', data.prayers.length);
+
+    const prayerSections = document.querySelectorAll('.div-8');
+    if (prayerSections.length === 0) {
+      console.warn('[PRAYERS] Prayer sections not found');
+      return;
+    }
+
+    console.log('[PRAYERS] Found', prayerSections.length, 'prayer sections');
 
     // טעינת זמנים דינמיים אם יש location
     let zmanimTimes = null;
@@ -306,123 +271,155 @@ class BoardDataLoader {
       console.log('[PRAYERS] Zmanim times received:', zmanimTimes);
     }
 
-    // הצגת כל התפילות ללא סינון לפי יום השבוע
-    let prayers = data.prayers;
-    
-    // אם יש תפילות כפולות (עם אותו שם), נשמור רק את הראשונה מכל סוג
-    const seenPrayers = new Set();
-    prayers = prayers.filter(p => {
-      const title = (p.title || '').toLowerCase();
-      if (title.includes('שחרית') || title.includes('shacharit')) {
-        if (seenPrayers.has('shacharit')) return false;
-        seenPrayers.add('shacharit');
+    // הצגת תפילות לפי בית כנסת
+    const allPrayers = data.prayers;
+
+    const filterPrayersByLocation = (locationKeyword) => {
+      const prayers = allPrayers.filter(p => {
+        const loc = (p.location || '').toLowerCase();
+        return locationKeyword ? loc.includes(locationKeyword) : true;
+      });
+
+      const seenPrayers = new Set();
+      return prayers.filter(p => {
+        const title = (p.title || '').toLowerCase();
+        if (title.includes('שחרית') || title.includes('shacharit')) {
+          if (seenPrayers.has('shacharit')) return false;
+          seenPrayers.add('shacharit');
+          return true;
+        } else if (title.includes('מנחה') || title.includes('mincha')) {
+          const minchaCount = Array.from(seenPrayers).filter(k => k.startsWith('mincha')).length;
+          if (minchaCount >= 2) return false;
+          seenPrayers.add(`mincha${minchaCount}`);
+          return true;
+        } else if (title.includes('ערבית') || title.includes('arvit') || title.includes('maariv')) {
+          if (seenPrayers.has('maariv')) return false;
+          seenPrayers.add('maariv');
+          return true;
+        }
         return true;
-      } else if (title.includes('מנחה') || title.includes('mincha')) {
-        const minchaCount = Array.from(seenPrayers).filter(k => k.startsWith('mincha')).length;
-        if (minchaCount >= 2) return false;
-        seenPrayers.add(`mincha${minchaCount}`);
-        return true;
-      } else if (title.includes('ערבית') || title.includes('arvit') || title.includes('maariv')) {
-        if (seenPrayers.has('maariv')) return false;
-        seenPrayers.add('maariv');
-        return true;
-      }
-      return true;
-    });
+      });
+    };
 
-    console.log('[PRAYERS] All prayers (no day filter):', prayers.length, prayers);
-
-    // ניקוי הרשימה הקיימת
-    prayerList.innerHTML = '';
-
-    // הפרדה לפי סוג תפילה
-    const shacharitPrayers = [];
-    const minchaPrayers = [];
-    const maarivPrayers = [];
-
-    for (const prayer of prayers) {
-      const title = prayer.title || '';
-      let time = '';
-      
-      // טיפול בזמנים - fixedTime או חישוב מ-relativeBase
-      if (prayer.timeType === 'fixed' && prayer.fixedTime) {
-        time = prayer.fixedTime;
-        console.log(`[PRAYERS] Prayer ${title} - fixed time: ${time}`);
-      } else if (prayer.timeType === 'relative' && prayer.relativeBase && zmanimTimes) {
-        // חישוב זמן דינמי מ-relativeBase
-        time = this.calculateRelativeTime(
-          prayer.relativeBase,
-          prayer.offsetMinutes || 0,
-          zmanimTimes
-        ) || prayer.fixedTime || '';
-        console.log(`[PRAYERS] Prayer ${title} - relative time (${prayer.relativeBase}): ${time}`);
-      } else if (prayer.timeType === 'relative' && !zmanimTimes) {
-        console.warn(`[PRAYERS] Prayer ${title} requires zmanim but not available, using fixedTime: ${prayer.fixedTime}`);
-        time = prayer.fixedTime || '';
-      } else {
-        time = prayer.fixedTime || '';
-        console.log(`[PRAYERS] Prayer ${title} - fallback time: ${time}`);
+    const updatePrayerSection = (prayerContainer, prayers) => {
+      const prayerList = prayerContainer.querySelector('.div-9');
+      if (!prayerList) {
+        console.warn('[PRAYERS] div-9 not found in prayer section');
+        return;
       }
-      
-      if (!time) {
-        console.warn(`[PRAYERS] No time found for prayer: ${title}`, prayer);
-        continue;
+
+      prayerList.innerHTML = '';
+
+      const shacharitPrayers = [];
+      const minchaPrayers = [];
+      const maarivPrayers = [];
+
+      for (const prayer of prayers) {
+        const title = prayer.title || '';
+        let time = '';
+        
+        if (prayer.timeType === 'fixed' && prayer.fixedTime) {
+          time = prayer.fixedTime;
+        } else if (prayer.timeType === 'relative' && prayer.relativeBase && zmanimTimes) {
+          time = this.calculateRelativeTime(
+            prayer.relativeBase,
+            prayer.offsetMinutes || 0,
+            zmanimTimes
+          ) || prayer.fixedTime || '';
+        } else if (prayer.timeType === 'relative' && !zmanimTimes) {
+          if (prayer.fixedTime) {
+            time = prayer.fixedTime;
+          } else {
+            const fallbackMaariv = allPrayers.find(p => {
+              const t = (p.title || '').toLowerCase();
+              return (t.includes('ערבית') || t.includes('arvit') || t.includes('maariv')) &&
+                     p.timeType === 'fixed' &&
+                     p.fixedTime;
+            });
+            time = fallbackMaariv?.fixedTime || '';
+          }
+        } else {
+          time = prayer.fixedTime || '';
+        }
+        
+        const name = title.toLowerCase();
+        const location = prayer.location || '';
+        
+        if (name.includes('שחרית') || name.includes('shacharit')) {
+          shacharitPrayers.push({ title, time, prayer, location });
+        } else if (name.includes('מנחה') || name.includes('mincha')) {
+          minchaPrayers.push({ title, time, prayer, location });
+        } else if (name.includes('ערבית') || name.includes('arvit') || name.includes('maariv')) {
+          maarivPrayers.push({ title, time, prayer, location });
+        }
       }
-      
-      const name = title.toLowerCase();
-      
-      if (name.includes('שחרית') || name.includes('shacharit')) {
-        shacharitPrayers.push({ title, time, prayer });
-      } else if (name.includes('מנחה') || name.includes('mincha')) {
-        minchaPrayers.push({ title, time, prayer });
-      } else if (name.includes('ערבית') || name.includes('arvit') || name.includes('maariv')) {
-        maarivPrayers.push({ title, time, prayer });
+
+      if (shacharitPrayers.length > 0) {
+        const shacharit = shacharitPrayers[0];
+        const div = document.createElement('div');
+        div.className = 'text-wrapper-10';
+        div.textContent = `שחרית ${shacharit.time}`;
+        prayerList.appendChild(div);
       }
+
+      minchaPrayers
+        .filter(m => m.time)
+        .sort((a, b) => {
+          const [ah, am] = (a.time || '').split(':').map(Number);
+          const [bh, bm] = (b.time || '').split(':').map(Number);
+          return (ah ?? 0) * 60 + (am ?? 0) - ((bh ?? 0) * 60 + (bm ?? 0));
+        })
+        .slice(0, 2)
+        .forEach((mincha, index) => {
+        const div = document.createElement('div');
+        div.className = index === 0 ? 'text-wrapper-11' : 'text-wrapper-11';
+          const suffix = (mincha.location || '').includes('חמל רבצר') ? ' (חמל רבצר)' : '';
+          div.textContent = index === 0
+            ? `מנחה א' ${mincha.time}${suffix}`
+            : `מנחה ב' ${mincha.time}${suffix}`;
+        prayerList.appendChild(div);
+      });
+
+      if (maarivPrayers.length > 0) {
+        const sortedMaariv = maarivPrayers
+          .filter(m => m.time)
+          .sort((a, b) => {
+            const [ah, am] = (a.time || '').split(':').map(Number);
+            const [bh, bm] = (b.time || '').split(':').map(Number);
+            return (ah ?? 0) * 60 + (am ?? 0) - ((bh ?? 0) * 60 + (bm ?? 0));
+          });
+
+        const firstMaariv = sortedMaariv[0];
+        if (firstMaariv) {
+          const div = document.createElement('div');
+          const suffix = (firstMaariv.location || '').includes('חמל רבצר') ? ' (חמל רבצר)' : '';
+          div.className = 'text-wrapper-12';
+          div.textContent = `ערבית א ${firstMaariv.time}${suffix}`;
+          prayerList.appendChild(div);
+        }
+
+        if (sortedMaariv.length > 1) {
+          const secondMaariv = sortedMaariv[1];
+          const div2 = document.createElement('div');
+          const suffix2 = (secondMaariv.location || '').includes('חמל רבצר') ? ' (חמל רבצר)' : '';
+          div2.className = 'text-wrapper-12';
+          div2.textContent = `ערבית ב ${secondMaariv.time}${suffix2}`;
+          prayerList.appendChild(div2);
+        }
+      }
+    };
+
+    if (prayerSections.length > 0) {
+      const centralPrayers = filterPrayersByLocation('בית כנסת מרכזי');
+      updatePrayerSection(prayerSections[0], centralPrayers);
     }
 
-    // הוספת שחרית (רק הראשונה)
-    if (shacharitPrayers.length > 0) {
-      const shacharit = shacharitPrayers[0];
-      const li = document.createElement('li');
-      li.className = 'text-wrapper-21';
-      li.textContent = `שחרית ${shacharit.time}`;
-      prayerList.appendChild(li);
-      console.log(`[PRAYERS] Added shacharit: ${shacharit.time}`);
-    }
-
-    // הוספת מנחה (עד 2)
-    minchaPrayers.slice(0, 2).forEach((mincha, index) => {
-      const li = document.createElement('li');
-      if (index === 0) {
-        li.className = 'text-wrapper-22';
-        li.textContent = `מנחה א' ${mincha.time}`;
-        console.log(`[PRAYERS] Added mincha1: ${mincha.time}`);
-      } else {
-        li.className = 'text-wrapper-23';
-        li.textContent = `מנחה ב' ${mincha.time}`;
-        console.log(`[PRAYERS] Added mincha2: ${mincha.time}`);
-      }
-      prayerList.appendChild(li);
-    });
-
-    // הוספת ערבית (רק הראשונה)
-    if (maarivPrayers.length > 0) {
-      const maariv = maarivPrayers[0];
-      const li = document.createElement('li');
-      li.className = 'text-wrapper-24';
-      li.textContent = `ערבית ${maariv.time}`;
-      prayerList.appendChild(li);
-      console.log(`[PRAYERS] Added maariv: ${maariv.time}`);
-    }
-
-    if (shacharitPrayers.length === 0) {
-      console.warn('[PRAYERS] Shacharit not found in prayers');
-    }
-    if (minchaPrayers.length === 0) {
-      console.warn('[PRAYERS] Mincha not found in prayers');
-    }
-    if (maarivPrayers.length === 0) {
-      console.warn('[PRAYERS] Maariv not found in prayers');
+    if (prayerSections.length > 1) {
+      const rabbanutPrayers = [
+        ...filterPrayersByLocation('בית כנסת רבנות'),
+        ...filterPrayersByLocation('חמל רבצר')
+      ];
+      updatePrayerSection(prayerSections[1], rabbanutPrayers);
     }
   }
 
@@ -453,35 +450,36 @@ class BoardDataLoader {
       }
     });
 
-    // עדכון תמונת "ימי ישיבה" ב-safety-section עם החלפה אוטומטית
+    // עדכון תמונת "ימי ישיבה" באזור הייעודי בעמוד welcome1
     if (yeshivaUpdates.length > 0) {
-      const safetySection = document.querySelector('section.safety-section');
-      if (safetySection) {
-        const yeshivaImage = safetySection.querySelector('img');
-        if (yeshivaImage) {
-          this.displayYeshivaImagesWithRotation(yeshivaUpdates, yeshivaImage);
-        }
+      const yeshivaImage = document.querySelector('.div-10 .element-dadfb-ec-b');
+      if (yeshivaImage) {
+        this.displayYeshivaImagesWithRotation(yeshivaUpdates, yeshivaImage);
       }
     }
 
-    // עדכון פינת הידעת - כל העדכונים עם החלפה אוטומטית
+    // עדכון פינת הידעת - טקסט + תמונה
     const hayadatSection = document.querySelector('section.did-you-know-section');
     if (hayadatSection) {
-      // עדכון הטקסט - כל העדכונים (לא רק "שיעורי תורה")
+      // עדכון טקסט עבור מבנים שכוללים section.did-you-know-section
       const hayadatContent = hayadatSection.querySelector('div.text-wrapper-27') || hayadatSection.querySelector('div[role="text"]') || hayadatSection.querySelector('div');
       if (hayadatContent) {
-        // שילוב כל העדכונים להצגה
         const allDisplayUpdates = [...displayUpdates, ...yeshivaUpdates];
         if (allDisplayUpdates.length > 0) {
           this.displayUpdatesInDidYouKnow(allDisplayUpdates, hayadatContent);
         }
       }
       
-      // עדכון התמונה - רק מעדכוני "הידעת" עם החלפה אוטומטית
       const hayadatImage = hayadatSection.querySelector('img');
       if (hayadatImage && hayadatUpdates.length > 0) {
         this.displayHayadatImagesWithRotation(hayadatUpdates, hayadatImage);
       }
+    }
+
+    // בעמוד welcome1 - התמונה של "פינת הידעת?" נמצאת בתוך div-11 > div:first-child > img.img
+    const hayadatImageWelcome1 = document.querySelector('.div-11 .img');
+    if (hayadatImageWelcome1 && hayadatUpdates.length > 0) {
+      this.displayHayadatImagesWithRotation(hayadatUpdates, hayadatImageWelcome1);
     }
   }
 
@@ -566,7 +564,7 @@ class BoardDataLoader {
     const imageUrl = currentUpdate.image || currentUpdate.imageUrl || currentUpdate.img || currentUpdate.background;
     if (imageUrl) {
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-        imageElement.src = `/welcomfirst/img/${imageUrl}`;
+        imageElement.src = `/welcome1/img/${imageUrl}`;
       } else {
         imageElement.src = imageUrl;
       }
@@ -610,11 +608,34 @@ class BoardDataLoader {
     const imageUrl = currentUpdate.image || currentUpdate.imageUrl || currentUpdate.img || currentUpdate.background;
     if (imageUrl) {
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-        imageElement.src = `/welcomfirst/img/${imageUrl}`;
+        imageElement.src = `/welcome1/img/${imageUrl}`;
       } else {
         imageElement.src = imageUrl;
       }
       imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה הידעת';
+    }
+  }
+
+  updateMainAnnouncement(data) {
+    if (!data?.updates || !Array.isArray(data.updates)) return;
+
+    const candidates = data.updates.filter(update => {
+      const type = (update.type || '').toLowerCase();
+      return (
+        type.includes('עדכון כללי') ||
+        type.includes('דתי') ||
+        type.includes('מטכלי') ||
+        type.includes('שיעורי תורה')
+      );
+    });
+
+    const target = document.querySelector('.element-3');
+    if (!target || candidates.length === 0) return;
+
+    const latest = candidates[candidates.length - 1];
+    const content = latest.content || latest.text || latest.title || latest.name;
+    if (content) {
+      target.innerHTML = content.replace(/\n/g, '<br/>');
     }
   }
 
@@ -639,6 +660,7 @@ class BoardDataLoader {
     await this.updatePrayerTimes(data);
     this.updateUpdates(data);
     this.updateShuttleTimes(data);
+    this.updateMainAnnouncement(data);
     
     this.notifyParentOfDisplayTime(data);
   }

@@ -50,7 +50,6 @@ export default function DisplayPage() {
             setIsLoading(false);
           } else {
             const linked = boardInfo?.linked === true || 
-                          boardInfo?.linked === 'true' || 
                           (boardInfo?.logical_board_id && boardInfo.logical_board_id > 0);
             
             if (!linked) {
@@ -64,7 +63,6 @@ export default function DisplayPage() {
         } catch (error) {
           console.warn('Error checking board status from server:', error);
           const linked = boardInfo?.linked === true || 
-                        boardInfo?.linked === 'true' || 
                         (boardInfo?.logical_board_id && boardInfo.logical_board_id > 0);
           
           if (!linked) {
@@ -163,7 +161,7 @@ export default function DisplayPage() {
       height: '100vh',
       position: 'relative',
       overflow: 'hidden',
-      direction: 'rtl',
+      direction: 'ltr',
       background: '#000'
     }}>
       <div style={{
@@ -231,6 +229,7 @@ export default function DisplayPage() {
           scrolling="no"
         />
       </div>
+      
     </div>
   );
 }

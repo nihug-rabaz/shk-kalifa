@@ -2,7 +2,7 @@ class ResponsiveScaler {
   constructor() {
     this.frame = document.querySelector('.frame');
     this.originalWidth = 4000;
-    this.originalHeight = 2250;
+    this.originalHeight = 2251;
     if (this.frame) {
       this.frame.style.position = 'absolute';
     }

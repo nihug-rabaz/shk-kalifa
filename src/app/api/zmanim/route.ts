@@ -9,6 +9,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'latitude and longitude required' }, { status: 400 });
   }
 
+  const latNum = Number(body.latitude);
+  const lngNum = Number(body.longitude);
+
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+    return NextResponse.json({ error: 'latitude and longitude must be numeric' }, { status: 400 });
+  }
+
   const dateStr = body.date;
   const gregorianDate = dateStr ? new Date(dateStr) : new Date();
   
@@ -16,8 +23,8 @@ export async function POST(req: Request) {
   try {
     const incomingUA = (req.headers as any).get?.('user-agent') || 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36';
     const payload = {
-      latitude: body.latitude,
-      longitude: body.longitude,
+      latitude: latNum,
+      longitude: -Math.abs(lngNum),
       date: dateStr || gregorianDate.toISOString().slice(0, 10)
     };
 
@@ -53,6 +60,7 @@ export async function POST(req: Request) {
     const times = zmanimData.times || zmanimData.zmanim || zmanimData || {};
     
     // Log for debugging
+    console.log('Zmanim API request payload:', payload);
     console.log('Zmanim API response:', JSON.stringify(zmanimData, null, 2));
     
     // Calculate Hebrew date locally for display format
@@ -140,7 +148,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       date: dateStr ?? gregorianDate.toISOString().slice(0, 10),
-      location: { lat: body.latitude, lng: body.longitude },
+      location: { lat: latNum, lng: lngNum },
       hebrew: {
         day: hebrewDay,
         month: hebrewMonth + 1,
@@ -202,7 +210,7 @@ export async function POST(req: Request) {
     
     return NextResponse.json({
       date: dateStr ?? gregorianDate.toISOString().slice(0, 10),
-      location: { lat: body.latitude, lng: body.longitude },
+      location: { lat: latNum, lng: lngNum },
       hebrew: {
         day: hebrewDay,
         month: hebrewMonth + 1,

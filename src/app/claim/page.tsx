@@ -122,7 +122,7 @@ export default function ClaimPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      direction: 'rtl',
+      direction: 'ltr',
       overflow: 'auto',
       padding: '20px'
     }}>
