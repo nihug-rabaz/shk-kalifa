@@ -228,20 +228,6 @@
   left: 851px;
 }
 
-.frame .credits {
-  position: absolute;
-  top: 2161px;
-  left: 20px;
-  font-family: "Ploni ML v2 AAA-Bold", Helvetica;
-  font-weight: 700;
-  font-size: 32px;
-  color: #1c4080;
-  text-align: left;
-  white-space: nowrap;
-  direction: ltr;
-  line-height: 79.2px;
-}
-
 .frame .div-5 {
   display: flex;
   flex-direction: column;
@@ -383,14 +369,14 @@
   display: block;
   white-space: normal;
   animation-name: slide-vertical-repeat;
-  animation-duration: 40s;
+  animation-duration: 20s;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
 
 @keyframes slide-vertical-repeat {
   0% {
-    transform: translateY(100%);
+    transform: translateY(0%);
   }
   100% {
     transform: translateY(-100%);

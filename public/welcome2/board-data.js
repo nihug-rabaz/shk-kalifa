@@ -55,9 +55,26 @@ class BoardDataLoader {
     }
     
     if (Array.isArray(newData.updates)) {
-      const existingUpdateIds = new Set((existing.updates || []).map(u => u.id || u.title));
-      const newUpdates = newData.updates.filter(u => !existingUpdateIds.has(u.id || u.title));
-      merged.updates = [...(existing.updates || []), ...newUpdates];
+      const existingUpdates = existing.updates || [];
+      const existingUpdatesMap = new Map();
+      existingUpdates.forEach(u => {
+        const key = u.id || u.title;
+        if (key) existingUpdatesMap.set(key, u);
+      });
+      
+      // עדכן עדכונים קיימים עם נתונים חדשים והוסף חדשים
+      newData.updates.forEach(newUpdate => {
+        const key = newUpdate.id || newUpdate.title;
+        if (key && existingUpdatesMap.has(key)) {
+          // עדכן עדכון קיים עם הנתונים החדשים
+          existingUpdatesMap.set(key, { ...existingUpdatesMap.get(key), ...newUpdate });
+        } else if (key) {
+          // הוסף עדכון חדש
+          existingUpdatesMap.set(key, newUpdate);
+        }
+      });
+      
+      merged.updates = Array.from(existingUpdatesMap.values());
     }
     
     if (newData.shuttleTimes) {
@@ -330,100 +347,7 @@ class BoardDataLoader {
       return true;
     });
 
-    console.log('[PRAYERS] All prayers (no day filter):', prayers.length, prayers);
-
-    // ניקוי הרשימה הקיימת
-    prayerList.innerHTML = '';
-
-    // הפרדה לפי סוג תפילה
-    const shacharitPrayers = [];
-    const minchaPrayers = [];
-    const maarivPrayers = [];
-
-    for (const prayer of prayers) {
-      const title = prayer.title || '';
-      let time = '';
-      
-      // טיפול בזמנים - fixedTime או חישוב מ-relativeBase
-      if (prayer.timeType === 'fixed' && prayer.fixedTime) {
-        time = prayer.fixedTime;
-        console.log(`[PRAYERS] Prayer ${title} - fixed time: ${time}`);
-      } else if (prayer.timeType === 'relative' && prayer.relativeBase && zmanimTimes) {
-        // חישוב זמן דינמי מ-relativeBase
-        time = this.calculateRelativeTime(
-          prayer.relativeBase,
-          prayer.offsetMinutes || 0,
-          zmanimTimes
-        ) || prayer.fixedTime || '';
-        console.log(`[PRAYERS] Prayer ${title} - relative time (${prayer.relativeBase}): ${time}`);
-      } else if (prayer.timeType === 'relative' && !zmanimTimes) {
-        console.warn(`[PRAYERS] Prayer ${title} requires zmanim but not available, using fixedTime: ${prayer.fixedTime}`);
-        time = prayer.fixedTime || '';
-      } else {
-        time = prayer.fixedTime || '';
-        console.log(`[PRAYERS] Prayer ${title} - fallback time: ${time}`);
-      }
-      
-      if (!time) {
-        console.warn(`[PRAYERS] No time found for prayer: ${title}`, prayer);
-        continue;
-      }
-      
-      const name = title.toLowerCase();
-      
-      if (name.includes('שחרית') || name.includes('shacharit')) {
-        shacharitPrayers.push({ title, time, prayer });
-      } else if (name.includes('מנחה') || name.includes('mincha')) {
-        minchaPrayers.push({ title, time, prayer });
-      } else if (name.includes('ערבית') || name.includes('arvit') || name.includes('maariv')) {
-        maarivPrayers.push({ title, time, prayer });
-      }
-    }
-
-    // הוספת שחרית (רק הראשונה)
-    if (shacharitPrayers.length > 0) {
-      const shacharit = shacharitPrayers[0];
-      const li = document.createElement('li');
-      li.className = 'text-wrapper-21';
-      li.textContent = `שחרית ${shacharit.time}`;
-      prayerList.appendChild(li);
-      console.log(`[PRAYERS] Added shacharit: ${shacharit.time}`);
-    }
-
-    // הוספת מנחה (עד 2)
-    minchaPrayers.slice(0, 2).forEach((mincha, index) => {
-      const li = document.createElement('li');
-      if (index === 0) {
-        li.className = 'text-wrapper-22';
-        li.textContent = `מנחה א' ${mincha.time}`;
-        console.log(`[PRAYERS] Added mincha1: ${mincha.time}`);
-      } else {
-        li.className = 'text-wrapper-23';
-        li.textContent = `מנחה ב' ${mincha.time}`;
-        console.log(`[PRAYERS] Added mincha2: ${mincha.time}`);
-      }
-      prayerList.appendChild(li);
-    });
-
-    // הוספת ערבית (רק הראשונה)
-    if (maarivPrayers.length > 0) {
-      const maariv = maarivPrayers[0];
-      const li = document.createElement('li');
-      li.className = 'text-wrapper-24';
-      li.textContent = `ערבית ${maariv.time}`;
-      prayerList.appendChild(li);
-      console.log(`[PRAYERS] Added maariv: ${maariv.time}`);
-    }
-
-    if (shacharitPrayers.length === 0) {
-      console.warn('[PRAYERS] Shacharit not found in prayers');
-    }
-    if (minchaPrayers.length === 0) {
-      console.warn('[PRAYERS] Mincha not found in prayers');
-    }
-    if (maarivPrayers.length === 0) {
-      console.warn('[PRAYERS] Maariv not found in prayers');
-    }
+    console.log('[PRAYERS] Welcome2 does not display prayers, skipping prayer list update');
   }
 
   updateUpdates(data) {
@@ -563,10 +487,24 @@ class BoardDataLoader {
     const currentUpdate = updates[this.yeshivaImageIndex];
     if (!currentUpdate) return;
 
-    const imageUrl = currentUpdate.image || currentUpdate.imageUrl || currentUpdate.img || currentUpdate.background;
+    const imageUrl = currentUpdate.imageUrl || currentUpdate.image || currentUpdate.img;
     if (imageUrl) {
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-        imageElement.src = `/welcomfirst/img/${imageUrl}`;
+        // קביעת הנתיב הנכון מהתמונה הקיימת ב-HTML או מה-src הנוכחי
+        let basePath = '/welcome2';
+        const existingImg = document.querySelector('section.safety-section img, section.yeshiva-days-section img');
+        if (existingImg && existingImg.src) {
+          const match = existingImg.src.match(/\/(welcome[123])\//);
+          if (match) {
+            basePath = `/${match[1]}`;
+          }
+        } else if (imageElement.src) {
+          const match = imageElement.src.match(/\/(welcome[123])\//);
+          if (match) {
+            basePath = `/${match[1]}`;
+          }
+        }
+        imageElement.src = `${basePath}/img/${imageUrl}`;
       } else {
         imageElement.src = imageUrl;
       }
@@ -607,10 +545,24 @@ class BoardDataLoader {
     const currentUpdate = updates[this.hayadatImageIndex];
     if (!currentUpdate) return;
 
-    const imageUrl = currentUpdate.image || currentUpdate.imageUrl || currentUpdate.img || currentUpdate.background;
+    const imageUrl = currentUpdate.imageUrl || currentUpdate.image || currentUpdate.img;
     if (imageUrl) {
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-        imageElement.src = `/welcomfirst/img/${imageUrl}`;
+        // קביעת הנתיב הנכון מהתמונה הקיימת ב-HTML או מה-src הנוכחי
+        let basePath = '/welcome2';
+        const existingImg = document.querySelector('section.did-you-know-section img');
+        if (existingImg && existingImg.src) {
+          const match = existingImg.src.match(/\/(welcome[123])\//);
+          if (match) {
+            basePath = `/${match[1]}`;
+          }
+        } else if (imageElement.src) {
+          const match = imageElement.src.match(/\/(welcome[123])\//);
+          if (match) {
+            basePath = `/${match[1]}`;
+          }
+        }
+        imageElement.src = `${basePath}/img/${imageUrl}`;
       } else {
         imageElement.src = imageUrl;
       }

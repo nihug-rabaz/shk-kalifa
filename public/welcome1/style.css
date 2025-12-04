@@ -217,19 +217,6 @@
   direction: rtl;
 }
 
-.frame .credits {
-  position: absolute;
-  top: 2161px;
-  left: 20px;
-  font-family: "Ploni ML v2 AAA-Bold", Helvetica;
-  font-weight: 700;
-  font-size: 32px;
-  color: #1c4080;
-  text-align: left;
-  white-space: nowrap;
-  direction: ltr;
-  line-height: 79.2px;
-}
 
 .frame .div-7 {
   display: inline-flex;
@@ -400,6 +387,12 @@
   height: 508.6px;
   background-color: #ffffff;
   border-radius: 101.72px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 40px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .frame .div-13 {
@@ -432,6 +425,12 @@
   height: 508.6px;
   background-color: #ffffff;
   border-radius: 101.72px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 40px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .frame .layer-2 {
@@ -443,35 +442,54 @@
 }
 
 .frame .element-3 {
-  position: absolute;
-  top: 1333px;
-  left: 902px;
+  position: relative;
   font-family: "Ploni ML v2 AAA-Bold", Helvetica;
   font-weight: 700;
   color: #1c4080;
-  font-size: 62.5px;
-  text-align: center;
+  font-size: 40px;
+  text-align: right;
   letter-spacing: 0;
-  line-height: 80.5px;
-  width: 1133.16px;
-  max-width: 1133.16px;
-  padding: 40px 80px;
+  line-height: 1.4;
+  width: 100%;
+  max-width: 100%;
   white-space: normal;
   word-wrap: break-word;
   direction: rtl;
+  display: block;
+  animation-name: slide-vertical-repeat;
+  animation-duration: 20s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  box-sizing: border-box;
 }
 
 .frame .text-wrapper-15 {
-  position: absolute;
-  top: 1374px;
-  left: 3045px;
+  position: relative;
   font-family: "Ploni ML v2 AAA-Bold", Helvetica;
   font-weight: 700;
-  color: #000000;
-  font-size: 62.5px;
-  text-align: center;
+  color: #1c4080;
+  font-size: 40px;
+  text-align: right;
   letter-spacing: 0;
-  line-height: 80.5px;
-  white-space: nowrap;
+  line-height: 1.4;
+  white-space: normal;
+  word-wrap: break-word;
   direction: rtl;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  animation-name: slide-vertical-repeat;
+  animation-duration: 20s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  box-sizing: border-box;
+}
+
+@keyframes slide-vertical-repeat {
+  0% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
 }

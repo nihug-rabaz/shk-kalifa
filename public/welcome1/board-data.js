@@ -55,9 +55,26 @@ class BoardDataLoader {
     }
     
     if (Array.isArray(newData.updates)) {
-      const existingUpdateIds = new Set((existing.updates || []).map(u => u.id || u.title));
-      const newUpdates = newData.updates.filter(u => !existingUpdateIds.has(u.id || u.title));
-      merged.updates = [...(existing.updates || []), ...newUpdates];
+      const existingUpdates = existing.updates || [];
+      const existingUpdatesMap = new Map();
+      existingUpdates.forEach(u => {
+        const key = u.id || u.title;
+        if (key) existingUpdatesMap.set(key, u);
+      });
+      
+      // עדכן עדכונים קיימים עם נתונים חדשים והוסף חדשים
+      newData.updates.forEach(newUpdate => {
+        const key = newUpdate.id || newUpdate.title;
+        if (key && existingUpdatesMap.has(key)) {
+          // עדכן עדכון קיים עם הנתונים החדשים
+          existingUpdatesMap.set(key, { ...existingUpdatesMap.get(key), ...newUpdate });
+        } else if (key) {
+          // הוסף עדכון חדש
+          existingUpdatesMap.set(key, newUpdate);
+        }
+      });
+      
+      merged.updates = Array.from(existingUpdatesMap.values());
     }
     
     if (newData.shuttleTimes) {
@@ -419,12 +436,22 @@ class BoardDataLoader {
         ...filterPrayersByLocation('בית כנסת רבנות'),
         ...filterPrayersByLocation('חמל רבצר')
       ];
-      updatePrayerSection(prayerSections[1], rabbanutPrayers);
+      // הסר שחרית מתפילות רב"ץ
+      const rabbanutPrayersWithoutShacharit = rabbanutPrayers.filter(p => {
+        const title = (p.title || '').toLowerCase();
+        return !title.includes('שחרית') && !title.includes('shacharit');
+      });
+      updatePrayerSection(prayerSections[1], rabbanutPrayersWithoutShacharit);
     }
   }
 
   updateUpdates(data) {
-    if (!data?.updates || !Array.isArray(data.updates)) return;
+    if (!data?.updates || !Array.isArray(data.updates)) {
+      console.log('[UPDATES] No updates data available');
+      return;
+    }
+
+    console.log('[UPDATES] Total updates received:', data.updates.length);
 
     // הפרדה בין סוגי עדכונים
     const hayadatUpdates = [];
@@ -435,26 +462,37 @@ class BoardDataLoader {
       const title = (update.title || update.name || '').toLowerCase();
       const type = (update.type || '').toLowerCase();
       
+      console.log('[UPDATES] Processing update:', { title, type, imageUrl: update.imageUrl, image: update.image });
+      
       // מזהה עדכוני "הידעת" בלבד
       if (title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
         hayadatUpdates.push(update);
+        console.log('[UPDATES] Added to hayadatUpdates:', update);
       } 
       // מזהה עדכוני "ימי ישיבה"
       else if (type.includes('ימי ישיבה') || title.includes('ימי ישיבה')) {
         yeshivaUpdates.push(update);
+        console.log('[UPDATES] Added to yeshivaUpdates:', update);
       }
       // מזהה עדכונים להצגה: "עדכון כללי", "דתי", "מטכלי", "שיעורי תורה"
-      else if (type.includes('עדכון כללי') || type.includes('דתי') || type.includes('מטכלי') || 
+      else if (type.includes('עדכון כללי') || type.includes('עדכון') || type.includes('דתי') || type.includes('מטכלי') || 
                type.includes('שיעורי תורה') || type.includes('תורה') || type.includes('שיעור')) {
         displayUpdates.push(update);
+        console.log('[UPDATES] Added to displayUpdates:', update);
       }
     });
 
+    console.log('[UPDATES] Summary:', { hayadatUpdates: hayadatUpdates.length, yeshivaUpdates: yeshivaUpdates.length, displayUpdates: displayUpdates.length });
+
     // עדכון תמונת "ימי ישיבה" באזור הייעודי בעמוד welcome1
-    if (yeshivaUpdates.length > 0) {
-      const yeshivaImage = document.querySelector('.div-10 .element-dadfb-ec-b');
-      if (yeshivaImage) {
+    const yeshivaImage = document.querySelector('.div-10 .element-dadfb-ec-b');
+    console.log('[UPDATES] Yeshiva image element found:', !!yeshivaImage);
+    if (yeshivaImage) {
+      if (yeshivaUpdates.length > 0) {
+        console.log('[UPDATES] Updating yeshiva image with', yeshivaUpdates.length, 'updates');
         this.displayYeshivaImagesWithRotation(yeshivaUpdates, yeshivaImage);
+      } else {
+        console.log('[UPDATES] No yeshiva updates to display');
       }
     }
 
@@ -478,8 +516,14 @@ class BoardDataLoader {
 
     // בעמוד welcome1 - התמונה של "פינת הידעת?" נמצאת בתוך div-11 > div:first-child > img.img
     const hayadatImageWelcome1 = document.querySelector('.div-11 .img');
-    if (hayadatImageWelcome1 && hayadatUpdates.length > 0) {
-      this.displayHayadatImagesWithRotation(hayadatUpdates, hayadatImageWelcome1);
+    console.log('[UPDATES] Hayadat image element found:', !!hayadatImageWelcome1);
+    if (hayadatImageWelcome1) {
+      if (hayadatUpdates.length > 0) {
+        console.log('[UPDATES] Updating hayadat image with', hayadatUpdates.length, 'updates');
+        this.displayHayadatImagesWithRotation(hayadatUpdates, hayadatImageWelcome1);
+      } else {
+        console.log('[UPDATES] No hayadat updates to display');
+      }
     }
   }
 
@@ -556,19 +600,41 @@ class BoardDataLoader {
   }
 
   showCurrentYeshivaImage(updates, imageElement) {
-    if (updates.length === 0) return;
+    if (updates.length === 0) {
+      console.log('[YESHIVA-IMAGE] No updates to display');
+      return;
+    }
 
     const currentUpdate = updates[this.yeshivaImageIndex];
-    if (!currentUpdate) return;
+    if (!currentUpdate) {
+      console.log('[YESHIVA-IMAGE] No current update at index', this.yeshivaImageIndex);
+      return;
+    }
 
-    const imageUrl = currentUpdate.image || currentUpdate.imageUrl || currentUpdate.img || currentUpdate.background;
+    console.log('[YESHIVA-IMAGE] Current update:', currentUpdate);
+    console.log('[YESHIVA-IMAGE] Update keys:', Object.keys(currentUpdate));
+    
+    // נסה למצוא את imageUrl בכל הדרכים האפשריות
+    const imageUrl = currentUpdate.imageUrl || 
+                     currentUpdate.image || 
+                     currentUpdate.img || 
+                     (currentUpdate.background && typeof currentUpdate.background === 'string' ? currentUpdate.background : null);
+    
+    console.log('[YESHIVA-IMAGE] Image URL found:', imageUrl);
+    console.log('[YESHIVA-IMAGE] imageUrl type:', typeof imageUrl);
+    
     if (imageUrl) {
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-        imageElement.src = `/welcome1/img/${imageUrl}`;
+        const finalUrl = `/welcome1/img/${imageUrl}`;
+        console.log('[YESHIVA-IMAGE] Setting src to:', finalUrl);
+        imageElement.src = finalUrl;
       } else {
+        console.log('[YESHIVA-IMAGE] Setting src to:', imageUrl);
         imageElement.src = imageUrl;
       }
       imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה ימי ישיבה';
+    } else {
+      console.warn('[YESHIVA-IMAGE] No imageUrl found in update. Full update:', JSON.stringify(currentUpdate, null, 2));
     }
   }
 
@@ -600,19 +666,41 @@ class BoardDataLoader {
   }
 
   showCurrentHayadatImage(updates, imageElement) {
-    if (updates.length === 0) return;
+    if (updates.length === 0) {
+      console.log('[HAYADAT-IMAGE] No updates to display');
+      return;
+    }
 
     const currentUpdate = updates[this.hayadatImageIndex];
-    if (!currentUpdate) return;
+    if (!currentUpdate) {
+      console.log('[HAYADAT-IMAGE] No current update at index', this.hayadatImageIndex);
+      return;
+    }
 
-    const imageUrl = currentUpdate.image || currentUpdate.imageUrl || currentUpdate.img || currentUpdate.background;
+    console.log('[HAYADAT-IMAGE] Current update:', currentUpdate);
+    console.log('[HAYADAT-IMAGE] Update keys:', Object.keys(currentUpdate));
+    
+    // נסה למצוא את imageUrl בכל הדרכים האפשריות
+    const imageUrl = currentUpdate.imageUrl || 
+                     currentUpdate.image || 
+                     currentUpdate.img || 
+                     (currentUpdate.background && typeof currentUpdate.background === 'string' ? currentUpdate.background : null);
+    
+    console.log('[HAYADAT-IMAGE] Image URL found:', imageUrl);
+    console.log('[HAYADAT-IMAGE] imageUrl type:', typeof imageUrl);
+    
     if (imageUrl) {
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-        imageElement.src = `/welcome1/img/${imageUrl}`;
+        const finalUrl = `/welcome1/img/${imageUrl}`;
+        console.log('[HAYADAT-IMAGE] Setting src to:', finalUrl);
+        imageElement.src = finalUrl;
       } else {
+        console.log('[HAYADAT-IMAGE] Setting src to:', imageUrl);
         imageElement.src = imageUrl;
       }
       imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה הידעת';
+    } else {
+      console.warn('[HAYADAT-IMAGE] No imageUrl found in update. Full update:', JSON.stringify(currentUpdate, null, 2));
     }
   }
 
@@ -623,19 +711,41 @@ class BoardDataLoader {
       const type = (update.type || '').toLowerCase();
       return (
         type.includes('עדכון כללי') ||
+        type.includes('עדכון') ||
         type.includes('דתי') ||
         type.includes('מטכלי') ||
         type.includes('שיעורי תורה')
       );
     });
 
-    const target = document.querySelector('.element-3');
-    if (!target || candidates.length === 0) return;
+    console.log('[ANNOUNCEMENT] Found', candidates.length, 'updates to display');
+    console.log('[ANNOUNCEMENT] Updates:', candidates);
 
-    const latest = candidates[candidates.length - 1];
-    const content = latest.content || latest.text || latest.title || latest.name;
-    if (content) {
-      target.innerHTML = content.replace(/\n/g, '<br/>');
+    const target = document.querySelector('.element-3');
+    if (!target) {
+      console.warn('[ANNOUNCEMENT] element-3 not found');
+      return;
+    }
+    
+    if (candidates.length === 0) {
+      console.warn('[ANNOUNCEMENT] No updates to display');
+      return;
+    }
+
+    // שילוב כל העדכונים עם הפרדה
+    const allContent = candidates
+      .map(update => {
+        const content = update.content || update.text || update.title || update.name;
+        return content;
+      })
+      .filter(Boolean)
+      .join('<br/><br/>---<br/><br/>');
+    
+    if (allContent) {
+      console.log('[ANNOUNCEMENT] Setting content:', allContent);
+      target.innerHTML = allContent.replace(/\n/g, '<br/>');
+    } else {
+      console.warn('[ANNOUNCEMENT] No content to display');
     }
   }
 

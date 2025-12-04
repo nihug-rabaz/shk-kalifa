@@ -1082,6 +1082,7 @@
 
 .frame .updates-section {
   position: relative;
+  text-align: right;
 }
 
 .frame .shuttle-schedule-section {
@@ -1106,16 +1107,4 @@
   position: relative;
 }
 
-.frame .credits {
-  position: absolute;
-  top: 2161px;
-  left: 20px;
-  font-family: "Ploni ML v2 AAA-Bold", Helvetica;
-  font-weight: 700;
-  font-size: 32px;
-  color: #1c4080;
-  text-align: left;
-  white-space: nowrap;
-  direction: ltr;
-  line-height: 79.2px;
-}
+/* .credits block removed – no longer displaying designer/developer credit */

@@ -55,9 +55,26 @@ class BoardDataLoader {
     }
     
     if (Array.isArray(newData.updates)) {
-      const existingUpdateIds = new Set((existing.updates || []).map(u => u.id || u.title));
-      const newUpdates = newData.updates.filter(u => !existingUpdateIds.has(u.id || u.title));
-      merged.updates = [...(existing.updates || []), ...newUpdates];
+      const existingUpdates = existing.updates || [];
+      const existingUpdatesMap = new Map();
+      existingUpdates.forEach(u => {
+        const key = u.id || u.title;
+        if (key) existingUpdatesMap.set(key, u);
+      });
+      
+      // עדכן עדכונים קיימים עם נתונים חדשים והוסף חדשים
+      newData.updates.forEach(newUpdate => {
+        const key = newUpdate.id || newUpdate.title;
+        if (key && existingUpdatesMap.has(key)) {
+          // עדכן עדכון קיים עם הנתונים החדשים
+          existingUpdatesMap.set(key, { ...existingUpdatesMap.get(key), ...newUpdate });
+        } else if (key) {
+          // הוסף עדכון חדש
+          existingUpdatesMap.set(key, newUpdate);
+        }
+      });
+      
+      merged.updates = Array.from(existingUpdatesMap.values());
     }
     
     if (newData.shuttleTimes) {
@@ -519,10 +536,25 @@ class BoardDataLoader {
     const currentUpdate = updates[this.yeshivaImageIndex];
     if (!currentUpdate) return;
 
-    const imageUrl = currentUpdate.image || currentUpdate.imageUrl || currentUpdate.img || currentUpdate.background;
+    const imageUrl = currentUpdate.imageUrl || currentUpdate.image || currentUpdate.img;
     if (imageUrl) {
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-        imageElement.src = `/welcomfirst/img/${imageUrl}`;
+        // קביעת הנתיב הנכון מהתמונה הקיימת ב-HTML או מה-src הנוכחי
+        let basePath = '/welcome3';
+        // נסה לקחת מהתמונה הקיימת ב-HTML
+        const existingImg = document.querySelector('section.safety-section img, section.yeshiva-days-section img');
+        if (existingImg && existingImg.src) {
+          const match = existingImg.src.match(/\/(welcome[123])\//);
+          if (match) {
+            basePath = `/${match[1]}`;
+          }
+        } else if (imageElement.src) {
+          const match = imageElement.src.match(/\/(welcome[123])\//);
+          if (match) {
+            basePath = `/${match[1]}`;
+          }
+        }
+        imageElement.src = `${basePath}/img/${imageUrl}`;
       } else {
         imageElement.src = imageUrl;
       }
@@ -563,10 +595,19 @@ class BoardDataLoader {
     const currentUpdate = updates[this.hayadatImageIndex];
     if (!currentUpdate) return;
 
-    const imageUrl = currentUpdate.image || currentUpdate.imageUrl || currentUpdate.img || currentUpdate.background;
+    const imageUrl = currentUpdate.imageUrl || currentUpdate.image || currentUpdate.img;
     if (imageUrl) {
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-        imageElement.src = `/welcomfirst/img/${imageUrl}`;
+        // קביעת הנתיב הנכון מהתמונה הקיימת ב-DOM
+        let basePath = '/welcome3';
+        if (imageElement.src) {
+          const currentSrc = imageElement.src;
+          const match = currentSrc.match(/\/(welcome[123])\//);
+          if (match) {
+            basePath = `/${match[1]}`;
+          }
+        }
+        imageElement.src = `${basePath}/img/${imageUrl}`;
       } else {
         imageElement.src = imageUrl;
       }
