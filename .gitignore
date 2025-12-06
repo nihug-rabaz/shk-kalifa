@@ -34,3 +34,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# kiosk logs
+/logs/*.log
+kiosk-setup/update-log.txt
+

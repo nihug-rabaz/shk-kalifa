@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop shk-kalifa",
+    "pm2:restart": "pm2 restart shk-kalifa",
+    "pm2:delete": "pm2 delete shk-kalifa",
+    "pm2:logs": "pm2 logs shk-kalifa"
   },
   "dependencies": {
     "@hebcal/core": "^6.0.5",
