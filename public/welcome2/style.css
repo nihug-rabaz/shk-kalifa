@@ -307,6 +307,7 @@
   align-items: flex-end;
   gap: 20.68px;
   position: relative;
+  flex: 0 0 auto;
 }
 
 .frame .div-wrapper-2 {
@@ -369,7 +370,7 @@
   display: block;
   white-space: normal;
   animation-name: slide-vertical-repeat;
-  animation-duration: 20s;
+  animation-duration: 60s;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }

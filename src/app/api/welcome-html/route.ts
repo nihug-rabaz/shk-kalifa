@@ -8,14 +8,14 @@ export async function GET(request: NextRequest) {
     const board = searchParams.get('board');
     const board_id = searchParams.get('board_id');
 
-    if (!board || (board !== '1' && board !== '2' && board !== '3')) {
+    if (!board || (board !== '1' && board !== '2')) {
       return NextResponse.json(
-        { error: 'Invalid board number. Use 1, 2, or 3' },
+        { error: 'Invalid board number. Use 1 or 2' },
         { status: 400 }
       );
     }
 
-    const welcomeDir = board === '1' ? 'welcome1' : board === '2' ? 'welcome2' : 'welcome3';
+    const welcomeDir = board === '1' ? 'welcome1' : 'welcome2';
     const htmlPath = join(process.cwd(), 'public', welcomeDir, 'index.html');
 
     try {

@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@hebcal/core": "^6.0.5",
+    "csv-parse": "^6.1.0",
+    "kosher-zmanim": "^0.9.0",
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

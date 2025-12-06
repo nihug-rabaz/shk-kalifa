@@ -109,6 +109,13 @@ class HebrewDateConverter {
       result += letters[remainder];
     }
     
+    // הוסף גרשיים לפני האות האחרונה (לדוגמה: תשפ"ו)
+    if (result.length >= 2) {
+      const lastChar = result.slice(-1);
+      const prefix = result.slice(0, -1);
+      result = `${prefix}"${lastChar}`;
+    }
+    
     return result || "תש\"פ";
   }
 

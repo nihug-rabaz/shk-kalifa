@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { HDate } from '@hebcal/core';
+import { HDate, Location, Zmanim, getSedra } from '@hebcal/core';
 
 type Req = { latitude: number; longitude: number; date?: string };
 
@@ -19,55 +19,64 @@ export async function POST(req: Request) {
   const dateStr = body.date;
   const gregorianDate = dateStr ? new Date(dateStr) : new Date();
   
-  // Call external zmanim API via server-side proxy with explicit headers
   try {
-    const incomingUA = (req.headers as any).get?.('user-agent') || 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36';
-    const payload = {
-      latitude: latNum,
-      longitude: -Math.abs(lngNum),
-      date: dateStr || gregorianDate.toISOString().slice(0, 10)
+    const lngAbs = Math.abs(lngNum);
+    const isInIsrael = latNum >= 29.5 && latNum <= 33.5 && lngAbs >= 34.2 && lngAbs <= 35.8;
+    const location = new Location(latNum, lngAbs, isInIsrael, 'Asia/Jerusalem', undefined, undefined, undefined, 0);
+    const zmanim = new Zmanim(location, gregorianDate, false);
+    
+    const times: Record<string, string> = {};
+    
+    const formatTime = (date: Date | null): string | null => {
+      if (!date) return null;
+      const timeStr = date.toLocaleTimeString('en-US', { 
+        timeZone: 'Asia/Jerusalem',
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      return timeStr;
     };
-
-    const zmanimResponse = await fetch('https://zmanim-web.vercel.app/api/zmanim', {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'accept-language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
-        'content-type': 'application/json',
-        'origin': 'https://zmanim-web.vercel.app',
-        'referer': 'https://zmanim-web.vercel.app/',
-        'priority': 'u=1, i',
-        'sec-ch-ua': '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
-        'sec-ch-ua-mobile': '?1',
-        'sec-ch-ua-platform': '"Android"',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'same-origin',
-        'user-agent': incomingUA
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!zmanimResponse.ok) {
-      throw new Error('Failed to fetch from zmanim API');
+    
+    const sunrise = zmanim.sunrise();
+    if (sunrise) times.sunrise = formatTime(sunrise) || '';
+    
+    const sunset = zmanim.sunset();
+    if (sunset) {
+      times.sunset = formatTime(sunset) || '';
+      const tzeitDate = new Date(sunset);
+      tzeitDate.setMinutes(tzeitDate.getMinutes() + 18);
+      times.tzeit = formatTime(tzeitDate) || '';
     }
-
-    const zmanimData = await zmanimResponse.json();
     
-    // Extract data from zmanim API response
-    const hebrewDateFromAPI = zmanimData.hebrewDate || zmanimData.hebrew?.date || zmanimData.hebrewDateString;
-    const parasha = zmanimData.parasha || zmanimData.parashaName || zmanimData.parsha || zmanimData.torahPortion;
-    const times = zmanimData.times || zmanimData.zmanim || zmanimData || {};
+    const alot = zmanim.alotHaShachar();
+    if (alot) times.alot = formatTime(alot) || '';
     
-    // Log for debugging
-    console.log('Zmanim API request payload:', payload);
-    console.log('Zmanim API response:', JSON.stringify(zmanimData, null, 2));
+    const misheyakir = zmanim.misheyakir();
+    if (misheyakir) times.misheyakir = formatTime(misheyakir) || '';
     
-    // Calculate Hebrew date locally for display format
+    const chatzot = zmanim.chatzot();
+    if (chatzot) times.chatzot = formatTime(chatzot) || '';
+    
+    const minchaGedola = zmanim.minchaGedola();
+    if (minchaGedola) times.minchaGedola = formatTime(minchaGedola) || '';
+    
+    const minchaKetana = zmanim.minchaKetana();
+    if (minchaKetana) times.minchaKetana = formatTime(minchaKetana) || '';
+    
+    const plag = zmanim.plagHaMincha();
+    if (plag) times.plag = formatTime(plag) || '';
+    
     const hebrewDate = new HDate(gregorianDate);
+    const hebrewYear = hebrewDate.getFullYear();
     const hebrewDay = hebrewDate.getDate();
     const hebrewMonth = hebrewDate.getMonth();
-    const hebrewYear = hebrewDate.getFullYear();
+    const isInIsraelForSedra = isInIsrael;
+    const sedra = getSedra(hebrewYear, isInIsraelForSedra);
+    const sedraResult = sedra.lookup(hebrewDate);
+    const parasha = sedraResult && sedraResult.parsha && sedraResult.parsha.length > 0 
+      ? sedraResult.parsha.join('-') 
+      : null;
   
     // Hebrew month names
     const hebrewMonthsMap: Record<number, string> = {
@@ -154,10 +163,9 @@ export async function POST(req: Request) {
         month: hebrewMonth + 1,
         year: hebrewYear,
         formatted: hebrewDateFormatted,
-        date: hebrewDateFormatted,
-        original: hebrewDateFromAPI
+        date: hebrewDateFormatted
       },
-      parasha: parasha,
+      parasha: parasha ? parasha[0] : null,
       times: times
     });
   } catch (error) {

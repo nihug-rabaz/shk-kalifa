@@ -10,6 +10,8 @@ class BoardDataLoader {
     this.yeshivaImageIndex = 0;
     this.hayadatImageRotationInterval = null;
     this.hayadatImageIndex = 0;
+    this.safetyRotationInterval = null;
+    this.safetyUpdateIndex = 0;
   }
 
   getBoardId() {
@@ -37,21 +39,38 @@ class BoardDataLoader {
     if (!newData) return existing;
     
     const merged = { ...existing };
+    let hasChanges = false;
     
     if (newData.boardInfo) {
-      merged.boardInfo = { ...existing.boardInfo, ...newData.boardInfo };
+      const boardInfoChanged = JSON.stringify(existing.boardInfo) !== JSON.stringify(newData.boardInfo);
+      if (boardInfoChanged) {
+        merged.boardInfo = { ...existing.boardInfo, ...newData.boardInfo };
+        hasChanges = true;
+      }
     }
     
     if (newData.theme) {
-      merged.theme = { ...existing.theme, ...newData.theme };
+      const themeChanged = JSON.stringify(existing.theme) !== JSON.stringify(newData.theme);
+      if (themeChanged) {
+        merged.theme = { ...existing.theme, ...newData.theme };
+        hasChanges = true;
+      }
     }
     
     if (newData.background) {
-      merged.background = { ...existing.background, ...newData.background };
+      const backgroundChanged = JSON.stringify(existing.background) !== JSON.stringify(newData.background);
+      if (backgroundChanged) {
+        merged.background = { ...existing.background, ...newData.background };
+        hasChanges = true;
+      }
     }
     
     if (Array.isArray(newData.prayers)) {
-      merged.prayers = newData.prayers;
+      const prayersChanged = JSON.stringify(existing.prayers || []) !== JSON.stringify(newData.prayers);
+      if (prayersChanged) {
+        merged.prayers = newData.prayers;
+        hasChanges = true;
+      }
     }
     
     if (Array.isArray(newData.updates)) {
@@ -62,25 +81,40 @@ class BoardDataLoader {
         if (key) existingUpdatesMap.set(key, u);
       });
       
-      // עדכן עדכונים קיימים עם נתונים חדשים והוסף חדשים
+      let updatesChanged = false;
       newData.updates.forEach(newUpdate => {
         const key = newUpdate.id || newUpdate.title;
         if (key && existingUpdatesMap.has(key)) {
-          // עדכן עדכון קיים עם הנתונים החדשים
-          existingUpdatesMap.set(key, { ...existingUpdatesMap.get(key), ...newUpdate });
+          const existingUpdate = existingUpdatesMap.get(key);
+          const existingImageUrl = existingUpdate.imageUrl || existingUpdate.image || existingUpdate.img;
+          const newImageUrl = newUpdate.imageUrl || newUpdate.image || newUpdate.img;
+          const imageUrlChanged = existingImageUrl !== newImageUrl;
+          const updateChanged = JSON.stringify(existingUpdate) !== JSON.stringify(newUpdate) || imageUrlChanged;
+          if (updateChanged) {
+            existingUpdatesMap.set(key, { ...existingUpdate, ...newUpdate });
+            updatesChanged = true;
+          }
         } else if (key) {
-          // הוסף עדכון חדש
           existingUpdatesMap.set(key, newUpdate);
+          updatesChanged = true;
         }
       });
       
-      merged.updates = Array.from(existingUpdatesMap.values());
+      if (updatesChanged || existingUpdates.length !== existingUpdatesMap.size) {
+        merged.updates = Array.from(existingUpdatesMap.values());
+        hasChanges = true;
+      }
     }
     
     if (newData.shuttleTimes) {
-      merged.shuttleTimes = { ...existing.shuttleTimes, ...newData.shuttleTimes };
+      const shuttleChanged = JSON.stringify(existing.shuttleTimes || {}) !== JSON.stringify(newData.shuttleTimes);
+      if (shuttleChanged) {
+        merged.shuttleTimes = { ...existing.shuttleTimes, ...newData.shuttleTimes };
+        hasChanges = true;
+      }
     }
     
+    merged._hasChanges = hasChanges;
     return merged;
   }
 
@@ -126,12 +160,19 @@ class BoardDataLoader {
             const newData = await response.json();
             const mergedData = this.mergeData(cachedData, newData);
             
+            const hasChanges = mergedData._hasChanges;
+            delete mergedData._hasChanges;
+            
             this.content = mergedData;
             localStorage.setItem(contentKey, JSON.stringify(mergedData));
             localStorage.setItem(contentTimestampKey, Date.now().toString());
             
-            console.log('[ONLINE] Loaded and merged content from server');
-            await this.updateAll(mergedData);
+            if (hasChanges) {
+              console.log('[ONLINE] Data changed, updating display');
+              await this.updateAll(mergedData);
+            } else {
+              console.log('[ONLINE] No changes detected, skipping update');
+            }
           } else {
             console.warn('[ONLINE] Server response not OK:', response.status);
             if (cachedData) {
@@ -212,7 +253,7 @@ class BoardDataLoader {
         },
         body: JSON.stringify({
           latitude: location.latitude,
-          longitude: location.longitude,
+          longitude: Math.abs(Number(location.longitude)),
           date: new Date().toISOString().slice(0, 10)
         })
       });
@@ -353,29 +394,36 @@ class BoardDataLoader {
   updateUpdates(data) {
     if (!data?.updates || !Array.isArray(data.updates)) return;
 
-    // הפרדה בין סוגי עדכונים
     const hayadatUpdates = [];
-    const yeshivaUpdates = []; // עדכוני "ימי ישיבה"
-    const displayUpdates = []; // כל העדכונים להצגה ב-did-you-know-section
+    const yeshivaUpdates = [];
+    const displayUpdates = [];
+    const safetyUpdates = [];
 
     data.updates.forEach(update => {
       const title = (update.title || update.name || '').toLowerCase();
       const type = (update.type || '').toLowerCase();
       
-      // מזהה עדכוני "הידעת" בלבד
-      if (title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
+      if (type.includes('דגשי בטיחות') || type.includes('בטיחות') || title.includes('דגשי בטיחות') || title.includes('בטיחות')) {
+        safetyUpdates.push(update);
+      }
+      else if (title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
         hayadatUpdates.push(update);
       } 
-      // מזהה עדכוני "ימי ישיבה"
       else if (type.includes('ימי ישיבה') || title.includes('ימי ישיבה')) {
         yeshivaUpdates.push(update);
       }
-      // מזהה עדכונים להצגה: "עדכון כללי", "דתי", "מטכלי", "שיעורי תורה"
       else if (type.includes('עדכון כללי') || type.includes('דתי') || type.includes('מטכלי') || 
                type.includes('שיעורי תורה') || type.includes('תורה') || type.includes('שיעור')) {
         displayUpdates.push(update);
       }
     });
+
+    const safetyContent = document.querySelector('.text-wrapper-15.safety-content');
+    if (safetyContent) {
+      if (safetyUpdates.length > 0) {
+        this.displaySafetyUpdatesWithScrolling(safetyUpdates, safetyContent);
+      }
+    }
 
     // עדכון תמונת "ימי ישיבה" ב-safety-section עם החלפה אוטומטית
     if (yeshivaUpdates.length > 0) {
@@ -384,6 +432,15 @@ class BoardDataLoader {
         const yeshivaImage = safetySection.querySelector('img');
         if (yeshivaImage) {
           this.displayYeshivaImagesWithRotation(yeshivaUpdates, yeshivaImage);
+        }
+      }
+    } else {
+      const safetySection = document.querySelector('section.safety-section');
+      if (safetySection) {
+        const yeshivaImage = safetySection.querySelector('img');
+        if (yeshivaImage && this.yeshivaImageRotationInterval) {
+          clearTimeout(this.yeshivaImageRotationInterval);
+          this.yeshivaImageRotationInterval = null;
         }
       }
     }
@@ -459,10 +516,11 @@ class BoardDataLoader {
 
     if (this.yeshivaImageRotationInterval) {
       clearTimeout(this.yeshivaImageRotationInterval);
+      this.yeshivaImageRotationInterval = null;
     }
 
     this.yeshivaImageIndex = 0;
-    this.showCurrentYeshivaImage(updates, imageElement);
+    this.showCurrentYeshivaImage(updates, imageElement, true);
     this.rotateToNextYeshivaImage(updates, imageElement);
   }
 
@@ -481,7 +539,7 @@ class BoardDataLoader {
     }, displayTime);
   }
 
-  showCurrentYeshivaImage(updates, imageElement) {
+  showCurrentYeshivaImage(updates, imageElement, forceUpdate = false) {
     if (updates.length === 0) return;
 
     const currentUpdate = updates[this.yeshivaImageIndex];
@@ -489,8 +547,8 @@ class BoardDataLoader {
 
     const imageUrl = currentUpdate.imageUrl || currentUpdate.image || currentUpdate.img;
     if (imageUrl) {
+      let finalUrl = '';
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-        // קביעת הנתיב הנכון מהתמונה הקיימת ב-HTML או מה-src הנוכחי
         let basePath = '/welcome2';
         const existingImg = document.querySelector('section.safety-section img, section.yeshiva-days-section img');
         if (existingImg && existingImg.src) {
@@ -504,11 +562,29 @@ class BoardDataLoader {
             basePath = `/${match[1]}`;
           }
         }
-        imageElement.src = `${basePath}/img/${imageUrl}`;
+        finalUrl = `${basePath}/img/${imageUrl}`;
       } else {
-        imageElement.src = imageUrl;
+        finalUrl = imageUrl;
       }
-      imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה ימי ישיבה';
+      
+      const currentSrc = imageElement.src.split('?')[0].split('&')[0];
+      const newSrcBase = finalUrl.split('?')[0].split('&')[0];
+      
+      if (forceUpdate || currentSrc !== newSrcBase) {
+        const timestamp = Date.now();
+        let finalSrc = finalUrl;
+        if (finalUrl.includes('?')) {
+          if (finalUrl.endsWith('?')) {
+            finalSrc = `${finalUrl}t=${timestamp}`;
+          } else {
+            finalSrc = `${finalUrl}&t=${timestamp}`;
+          }
+        } else {
+          finalSrc = `${finalUrl}?t=${timestamp}`;
+        }
+        imageElement.src = finalSrc;
+        imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה ימי ישיבה';
+      }
     }
   }
 
@@ -547,8 +623,8 @@ class BoardDataLoader {
 
     const imageUrl = currentUpdate.imageUrl || currentUpdate.image || currentUpdate.img;
     if (imageUrl) {
+      let finalUrl = '';
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-        // קביעת הנתיב הנכון מהתמונה הקיימת ב-HTML או מה-src הנוכחי
         let basePath = '/welcome2';
         const existingImg = document.querySelector('section.did-you-know-section img');
         if (existingImg && existingImg.src) {
@@ -562,11 +638,63 @@ class BoardDataLoader {
             basePath = `/${match[1]}`;
           }
         }
-        imageElement.src = `${basePath}/img/${imageUrl}`;
+        finalUrl = `${basePath}/img/${imageUrl}`;
       } else {
-        imageElement.src = imageUrl;
+        finalUrl = imageUrl;
       }
+      
+      const timestamp = Date.now();
+      let finalSrc = finalUrl;
+      if (finalUrl.includes('?')) {
+        if (finalUrl.endsWith('?')) {
+          finalSrc = `${finalUrl}t=${timestamp}`;
+        } else {
+          finalSrc = `${finalUrl}&t=${timestamp}`;
+        }
+      } else {
+        finalSrc = `${finalUrl}?t=${timestamp}`;
+      }
+      imageElement.src = finalSrc;
       imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה הידעת';
+    }
+  }
+
+  displaySafetyUpdatesWithScrolling(updates, contentElement) {
+    if (!updates || updates.length === 0 || !contentElement) return;
+
+    if (this.safetyRotationInterval) {
+      clearTimeout(this.safetyRotationInterval);
+    }
+
+    this.safetyUpdateIndex = 0;
+    this.showCurrentSafetyUpdate(updates, contentElement);
+    this.rotateToNextSafetyUpdate(updates, contentElement);
+  }
+
+  rotateToNextSafetyUpdate(updates, contentElement) {
+    if (!updates || updates.length === 0) return;
+
+    const currentUpdate = updates[this.safetyUpdateIndex];
+    if (!currentUpdate) return;
+
+    const displayTime = (currentUpdate.displayTime || 20) * 1000;
+
+    this.safetyRotationInterval = setTimeout(() => {
+      this.safetyUpdateIndex = (this.safetyUpdateIndex + 1) % updates.length;
+      this.showCurrentSafetyUpdate(updates, contentElement);
+      this.rotateToNextSafetyUpdate(updates, contentElement);
+    }, displayTime);
+  }
+
+  showCurrentSafetyUpdate(updates, contentElement) {
+    if (updates.length === 0) return;
+
+    const currentUpdate = updates[this.safetyUpdateIndex];
+    if (!currentUpdate) return;
+
+    const content = currentUpdate.content || currentUpdate.text || currentUpdate.title || currentUpdate.name;
+    if (content) {
+      contentElement.innerHTML = content.replace(/\n/g, '<br/>');
     }
   }
 
@@ -601,12 +729,16 @@ class BoardDataLoader {
     const hayadatUpdates = [];
     const yeshivaUpdates = [];
     const displayUpdates = [];
+    const safetyUpdates = [];
 
     data.updates.forEach(update => {
       const title = (update.title || update.name || '').toLowerCase();
       const type = (update.type || '').toLowerCase();
       
-      if (title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
+      if (type.includes('דגשי בטיחות') || type.includes('בטיחות') || title.includes('דגשי בטיחות') || title.includes('בטיחות')) {
+        safetyUpdates.push(update);
+      }
+      else if (title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
         hayadatUpdates.push(update);
       } else if (type.includes('ימי ישיבה') || title.includes('ימי ישיבה')) {
         yeshivaUpdates.push(update);
@@ -620,7 +752,8 @@ class BoardDataLoader {
     const totalTime = Math.max(
       this.calculateTotalDisplayTime(hayadatUpdates),
       this.calculateTotalDisplayTime(yeshivaUpdates),
-      this.calculateTotalDisplayTime(allDisplayUpdates)
+      this.calculateTotalDisplayTime(allDisplayUpdates),
+      this.calculateTotalDisplayTime(safetyUpdates)
     );
 
     if (window.parent && window.parent !== window) {
@@ -634,7 +767,7 @@ class BoardDataLoader {
   setupPeriodicUpdates() {
     this.updateInterval = setInterval(async () => {
       await this.loadContent();
-    }, 60000);
+    }, 30000);
   }
 
   setupOnlineOfflineListeners() {
@@ -685,6 +818,10 @@ class BoardDataLoader {
     if (this.hayadatImageRotationInterval) {
       clearTimeout(this.hayadatImageRotationInterval);
       this.hayadatImageRotationInterval = null;
+    }
+    if (this.safetyRotationInterval) {
+      clearTimeout(this.safetyRotationInterval);
+      this.safetyRotationInterval = null;
     }
   }
 }
