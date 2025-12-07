@@ -74,9 +74,94 @@ export async function POST(req: Request) {
     const isInIsraelForSedra = isInIsrael;
     const sedra = getSedra(hebrewYear, isInIsraelForSedra);
     const sedraResult = sedra.lookup(hebrewDate);
-    const parasha = sedraResult && sedraResult.parsha && sedraResult.parsha.length > 0 
+    
+    const parashaMap: Record<string, string> = {
+      'Bereshit': 'בראשית',
+      'Noach': 'נח',
+      'Lech-Lecha': 'לך לך',
+      'Vayera': 'וירא',
+      'Chayei Sara': 'חיי שרה',
+      'Toldot': 'תולדות',
+      'Vayetzei': 'ויצא',
+      'Vayishlach': 'וישלח',
+      'Vayeshev': 'וישב',
+      'Miketz': 'מקץ',
+      'Vayigash': 'ויגש',
+      'Vayechi': 'ויחי',
+      'Shemot': 'שמות',
+      'Vaera': 'וארא',
+      'Bo': 'בא',
+      'Beshalach': 'בשלח',
+      'Yitro': 'יתרו',
+      'Mishpatim': 'משפטים',
+      'Terumah': 'תרומה',
+      'Tetzaveh': 'תצוה',
+      'Ki Tisa': 'כי תשא',
+      'Vayakhel': 'ויקהל',
+      'Pekudei': 'פקודי',
+      'Vayikra': 'ויקרא',
+      'Tzav': 'צו',
+      'Shemini': 'שמיני',
+      'Tazria': 'תזריע',
+      'Metzora': 'מצורע',
+      'Achrei Mot': 'אחרי מות',
+      'Kedoshim': 'קדושים',
+      'Emor': 'אמור',
+      'Behar': 'בהר',
+      'Bechukotai': 'בחוקותי',
+      'Bamidbar': 'במדבר',
+      'Nasso': 'נשא',
+      'Beha\'alotcha': 'בהעלתך',
+      'Sh\'lach': 'שלח',
+      'Korach': 'קרח',
+      'Chukat': 'חקת',
+      'Balak': 'בלק',
+      'Pinchas': 'פינחס',
+      'Matot': 'מטות',
+      'Masei': 'מסעי',
+      'Matot-Masei': 'מטות-מסעי',
+      'Devarim': 'דברים',
+      'Vaetchanan': 'ואתחנן',
+      'Eikev': 'עקב',
+      'Re\'eh': 'ראה',
+      'Shoftim': 'שופטים',
+      'Ki Teitzei': 'כי תצא',
+      'Ki Tavo': 'כי תבוא',
+      'Nitzavim': 'נצבים',
+      'Vayeilech': 'וילך',
+      'Nitzavim-Vayeilech': 'נצבים-וילך',
+      'Ha\'azinu': 'האזינו',
+      'Vezot Haberakhah': 'וזאת הברכה'
+    };
+    
+    const parashaEnglish = sedraResult && sedraResult.parsha && sedraResult.parsha.length > 0 
       ? sedraResult.parsha.join('-') 
       : null;
+    
+    const normalizeParashaName = (name: string): string => {
+      return name.replace(/'/g, '\'').replace(/"/g, '\'');
+    };
+    
+    const getParashaHebrew = (name: string): string => {
+      const normalized = normalizeParashaName(name);
+      if (parashaMap[normalized]) {
+        return parashaMap[normalized];
+      }
+      if (normalized === 'Shmini') {
+        return parashaMap['Shemini'];
+      }
+      return name;
+    };
+    
+    let parasha = null;
+    if (parashaEnglish) {
+      if (parashaEnglish.includes('-')) {
+        const parts = parashaEnglish.split('-').map(p => p.trim());
+        parasha = parts.map(p => getParashaHebrew(p)).join('-');
+      } else {
+        parasha = getParashaHebrew(parashaEnglish);
+      }
+    }
   
     // Hebrew month names
     const hebrewMonthsMap: Record<number, string> = {
@@ -165,7 +250,7 @@ export async function POST(req: Request) {
         formatted: hebrewDateFormatted,
         date: hebrewDateFormatted
       },
-      parasha: parasha ? parasha[0] : null,
+      parasha: parasha,
       times: times
     });
   } catch (error) {

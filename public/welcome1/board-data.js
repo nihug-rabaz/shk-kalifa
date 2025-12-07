@@ -193,12 +193,16 @@ class BoardDataLoader {
             console.warn('[ONLINE] Server response not OK:', response.status);
             if (cachedData) {
               console.log('[FALLBACK] Using cached data due to server error');
+              this.content = cachedData;
+              await this.updateAll(cachedData);
             }
           }
         } catch (error) {
           console.warn('[ONLINE] Error loading content from server:', error);
           if (cachedData) {
             console.log('[FALLBACK] Using cached data due to connection error');
+            this.content = cachedData;
+            await this.updateAll(cachedData);
           }
         }
       } else {
@@ -261,6 +265,8 @@ class BoardDataLoader {
       return null;
     }
 
+    const cacheKey = `zmanim_${location.latitude}_${location.longitude}_${new Date().toISOString().slice(0, 10)}`;
+    
     try {
       const response = await fetch('/api/zmanim', {
         method: 'POST',
@@ -276,10 +282,24 @@ class BoardDataLoader {
 
       if (response.ok) {
         const data = await response.json();
-        return data.times || {};
+        const zmanimData = data.times || {};
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(zmanimData));
+        } catch (e) {
+          console.warn('Failed to cache zmanim:', e);
+        }
+        return zmanimData;
       }
     } catch (error) {
       console.warn('Error fetching zmanim:', error);
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch (e) {
+          console.warn('Failed to parse cached zmanim:', e);
+        }
+      }
     }
     return null;
   }
@@ -947,16 +967,43 @@ class BoardDataLoader {
   }
 
   async updateAll(data) {
-    if (!data) return;
+    if (!data) {
+      console.warn('[UPDATE] No data provided to updateAll');
+      return;
+    }
     
-    this.updateBoardInfo(data);
-    this.updateTheme(data);
-    await this.updatePrayerTimes(data);
-    this.updateUpdates(data);
-    this.updateShuttleTimes(data);
-    this.updateMainAnnouncement(data);
-    
-    this.notifyParentOfDisplayTime(data);
+    try {
+      this.updateBoardInfo(data);
+      this.updateTheme(data);
+      await this.updatePrayerTimes(data);
+      this.updateUpdates(data);
+      this.updateShuttleTimes(data);
+      this.updateMainAnnouncement(data);
+      
+      this.notifyParentOfDisplayTime(data);
+      
+      const boardId = this.getBoardId();
+      if (boardId) {
+        const contentKey = `shchakim_content_${boardId}`;
+        try {
+          localStorage.setItem(contentKey, JSON.stringify(data));
+          localStorage.setItem(`shchakim_content_timestamp_${boardId}`, Date.now().toString());
+        } catch (e) {
+          console.warn('[UPDATE] Failed to save data to localStorage:', e);
+        }
+      }
+    } catch (error) {
+      console.error('[UPDATE] Error in updateAll:', error);
+      const boardId = this.getBoardId();
+      if (boardId) {
+        const contentKey = `shchakim_content_${boardId}`;
+        try {
+          localStorage.setItem(contentKey, JSON.stringify(data));
+        } catch (e) {
+          console.warn('[UPDATE] Failed to save data to localStorage after error:', e);
+        }
+      }
+    }
   }
 
   notifyParentOfDisplayTime(data) {
