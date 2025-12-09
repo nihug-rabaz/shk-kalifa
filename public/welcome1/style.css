@@ -237,17 +237,25 @@
 }
 
 .frame .text-wrapper-9 {
-  position: relative;
-  align-self: stretch;
-  margin-top: -1.02px;
-  font-family: "Ploni ML v2 AAA-Bold", Helvetica;
-  font-size: 80.5px;
-  text-align: left;
-  line-height: 80.5px;
+  width: 549px;
+  height: 96px;
+  font-family: 'Ploni ML v2 AAA', Helvetica;
+  font-style: normal;
   font-weight: 700;
-  color: #1c4080;
-  letter-spacing: 0;
+  font-size: 60px;
+  line-height: 45px;
+  text-align: center;
+  color: #1C4080;
+  flex: none;
+  order: 0;
+  flex-grow: 0;
+  position: relative;
   direction: rtl;
+}
+
+.frame .text-wrapper-9 .prayer-location {
+  font-size: 48px;
+  line-height: 36px;
 }
 
 .frame .frame-wrapper {

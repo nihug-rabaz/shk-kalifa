@@ -90,3 +90,5 @@ try {
 Write-Host "`nApplication is running!" -ForegroundColor Green
 pm2 list
 
+
+
