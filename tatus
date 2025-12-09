@@ -1,0 +1,34 @@
+warning: in the working copy of 'public/welcome1/style.css', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/public/welcome1/style.css b/public/welcome1/style.css[m
+[1mindex 82a426b..14be1c6 100644[m
+[1m--- a/public/welcome1/style.css[m
+[1m+++ b/public/welcome1/style.css[m
+[36m@@ -18,10 +18,10 @@[m
+ [m
+ .frame .layer {[m
+   position: absolute;[m
+[31m-  top: 0;[m
+[31m-  left: 0;[m
+[31m-  width: 1px;[m
+[31m-  height: 1px;[m
+[32m+[m[32m  top: 234px;[m
+[32m+[m[32m  left: 951px;[m
+[32m+[m[32m  width: 2545px;[m
+[32m+[m[32m  height: 125px;[m
+ }[m
+ [m
+ .frame .text-wrapper {[m
+[36m@@ -441,13 +441,6 @@[m
+   overflow: hidden;[m
+ }[m
+ [m
+[31m-.frame .layer-2 {[m
+[31m-  position: absolute;[m
+[31m-  top: 235px;[m
+[31m-  left: 851px;[m
+[31m-  width: 2644px;[m
+[31m-  height: 130px;[m
+[31m-}[m
+ [m
+ .frame .element-3 {[m
+   position: relative;[m
