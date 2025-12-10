@@ -1,3 +1,101 @@
+class ImageCacheManager {
+  constructor() {
+    this.dbName = 'ImageCacheDB';
+    this.dbVersion = 1;
+    this.storeName = 'images';
+    this.db = null;
+  }
+
+  async init() {
+    if (this.db) return;
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.dbVersion);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve();
+      };
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName);
+        }
+      };
+    });
+  }
+
+  async getImageUrl(url) {
+    await this.init();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.get(url);
+      request.onsuccess = () => {
+        const blob = request.result;
+        if (blob) {
+          const cachedUrl = URL.createObjectURL(blob);
+          resolve(cachedUrl);
+        } else {
+          resolve(null);
+        }
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async saveImage(url, blob) {
+    await this.init();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.put(blob, url);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async hasImage(url) {
+    await this.init();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.get(url);
+      request.onsuccess = () => resolve(!!request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async loadAndCacheImage(url) {
+    try {
+      const isOnline = navigator.onLine;
+      const cachedUrl = await this.getImageUrl(url);
+      
+      if (cachedUrl && !isOnline) {
+        return cachedUrl;
+      }
+
+      if (isOnline) {
+        const response = await fetch(url);
+        if (response.ok) {
+          const blob = await response.blob();
+          await this.saveImage(url, blob);
+          const objectUrl = URL.createObjectURL(blob);
+          return objectUrl;
+        }
+      }
+
+      if (cachedUrl) {
+        return cachedUrl;
+      }
+
+      return url;
+    } catch (error) {
+      const cachedUrl = await this.getImageUrl(url);
+      return cachedUrl || url;
+    }
+  }
+}
+
 class BoardDataLoader {
   constructor() {
     this.boardId = window.BOARD_ID || '';
@@ -13,6 +111,8 @@ class BoardDataLoader {
     this.safetyRotationInterval = null;
     this.safetyUpdateIndex = 0;
     this.lastYeshivaUpdatesIds = null;
+    this.imageCache = new ImageCacheManager();
+    this.cachedImageUrls = new Map();
   }
 
   getBoardId() {
@@ -720,8 +820,9 @@ class BoardDataLoader {
       console.log('[YESHIVA-IMAGE] Updates changed, resetting rotation');
       this.lastYeshivaUpdatesIds = currentUpdatesIds;
       this.yeshivaImageIndex = 0;
-      this.showCurrentYeshivaImage(updates, imageElement, true);
-      this.rotateToNextYeshivaImage(updates, imageElement);
+      this.showCurrentYeshivaImage(updates, imageElement, true).then(() => {
+        this.rotateToNextYeshivaImage(updates, imageElement);
+      });
     } else {
       console.log('[YESHIVA-IMAGE] Updates unchanged, forcing image update');
       this.showCurrentYeshivaImage(updates, imageElement, true);
@@ -736,14 +837,14 @@ class BoardDataLoader {
 
     const displayTime = (currentUpdate.displayTime || 20) * 1000;
 
-    this.yeshivaImageRotationInterval = setTimeout(() => {
+    this.yeshivaImageRotationInterval = setTimeout(async () => {
       this.yeshivaImageIndex = (this.yeshivaImageIndex + 1) % updates.length;
-      this.showCurrentYeshivaImage(updates, imageElement);
+      await this.showCurrentYeshivaImage(updates, imageElement);
       this.rotateToNextYeshivaImage(updates, imageElement);
     }, displayTime);
   }
 
-  showCurrentYeshivaImage(updates, imageElement, forceUpdate = false) {
+  async showCurrentYeshivaImage(updates, imageElement, forceUpdate = false) {
     if (updates.length === 0) {
       console.log('[YESHIVA-IMAGE] No updates to display');
       return;
@@ -768,10 +869,51 @@ class BoardDataLoader {
         finalUrl = imageUrl;
       }
       
+      const urlBase = finalUrl.split('?')[0].split('&')[0];
       const currentSrc = imageElement.src.split('?')[0].split('&')[0];
-      const newSrcBase = finalUrl.split('?')[0].split('&')[0];
+      const cachedUrl = this.cachedImageUrls.get(urlBase);
       
-      if (forceUpdate || currentSrc !== newSrcBase) {
+      if (cachedUrl && !forceUpdate && currentSrc === cachedUrl) {
+        return;
+      }
+
+      const isOnline = await this.checkOnline();
+      if (isOnline) {
+        try {
+          const cachedImageUrl = await this.imageCache.loadAndCacheImage(finalUrl);
+          if (cachedImageUrl && cachedImageUrl !== finalUrl) {
+            this.cachedImageUrls.set(urlBase, cachedImageUrl);
+            imageElement.src = cachedImageUrl;
+            imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה ימי ישיבה';
+            console.log('[YESHIVA-IMAGE] Using cached image:', cachedImageUrl);
+            return;
+          }
+        } catch (error) {
+          console.warn('[YESHIVA-IMAGE] Error loading cached image:', error);
+        }
+      }
+
+      const cachedImageUrl = await this.imageCache.getImageUrl(urlBase);
+      if (cachedImageUrl) {
+        this.cachedImageUrls.set(urlBase, cachedImageUrl);
+        imageElement.src = cachedImageUrl;
+        imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה ימי ישיבה';
+        console.log('[YESHIVA-IMAGE] Using offline cached image:', cachedImageUrl);
+        
+        if (isOnline) {
+          this.imageCache.loadAndCacheImage(finalUrl).then(cachedUrl => {
+            if (cachedUrl && cachedUrl !== finalUrl) {
+              this.cachedImageUrls.set(urlBase, cachedUrl);
+              if (imageElement.src === cachedImageUrl) {
+                imageElement.src = cachedUrl;
+              }
+            }
+          }).catch(err => console.warn('[YESHIVA-IMAGE] Background cache update failed:', err));
+        }
+        return;
+      }
+
+      if (forceUpdate || currentSrc !== urlBase) {
         const timestamp = Date.now();
         let finalSrc = finalUrl;
         if (finalUrl.includes('?')) {
@@ -786,6 +928,14 @@ class BoardDataLoader {
         imageElement.src = finalSrc;
         imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה ימי ישיבה';
         console.log('[YESHIVA-IMAGE] Updated image to:', imageElement.src);
+        
+        if (isOnline) {
+          this.imageCache.loadAndCacheImage(finalUrl).then(cachedUrl => {
+            if (cachedUrl && cachedUrl !== finalUrl) {
+              this.cachedImageUrls.set(urlBase, cachedUrl);
+            }
+          }).catch(err => console.warn('[YESHIVA-IMAGE] Background cache failed:', err));
+        }
       }
     } else {
       console.warn('[YESHIVA-IMAGE] No imageUrl found in update');
@@ -801,8 +951,9 @@ class BoardDataLoader {
     }
 
     this.hayadatImageIndex = 0;
-    this.showCurrentHayadatImage(updates, imageElement, true);
-    this.rotateToNextHayadatImage(updates, imageElement);
+    this.showCurrentHayadatImage(updates, imageElement, true).then(() => {
+      this.rotateToNextHayadatImage(updates, imageElement);
+    });
   }
 
   rotateToNextHayadatImage(updates, imageElement) {
@@ -813,14 +964,14 @@ class BoardDataLoader {
 
     const displayTime = (currentUpdate.displayTime || 20) * 1000;
 
-    this.hayadatImageRotationInterval = setTimeout(() => {
+    this.hayadatImageRotationInterval = setTimeout(async () => {
       this.hayadatImageIndex = (this.hayadatImageIndex + 1) % updates.length;
-      this.showCurrentHayadatImage(updates, imageElement);
+      await this.showCurrentHayadatImage(updates, imageElement);
       this.rotateToNextHayadatImage(updates, imageElement);
     }, displayTime);
   }
 
-  showCurrentHayadatImage(updates, imageElement, forceUpdate = false) {
+  async showCurrentHayadatImage(updates, imageElement, forceUpdate = false) {
     if (updates.length === 0) {
       console.log('[HAYADAT-IMAGE] No updates to display');
       return;
@@ -845,10 +996,51 @@ class BoardDataLoader {
         finalUrl = imageUrl;
       }
       
+      const urlBase = finalUrl.split('?')[0].split('&')[0];
       const currentSrc = imageElement.src.split('?')[0].split('&')[0];
-      const newSrcBase = finalUrl.split('?')[0].split('&')[0];
+      const cachedUrl = this.cachedImageUrls.get(urlBase);
       
-      if (forceUpdate || currentSrc !== newSrcBase) {
+      if (cachedUrl && !forceUpdate && currentSrc === cachedUrl) {
+        return;
+      }
+
+      const isOnline = await this.checkOnline();
+      if (isOnline) {
+        try {
+          const cachedImageUrl = await this.imageCache.loadAndCacheImage(finalUrl);
+          if (cachedImageUrl && cachedImageUrl !== finalUrl) {
+            this.cachedImageUrls.set(urlBase, cachedImageUrl);
+            imageElement.src = cachedImageUrl;
+            imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה הידעת';
+            console.log('[HAYADAT-IMAGE] Using cached image:', cachedImageUrl);
+            return;
+          }
+        } catch (error) {
+          console.warn('[HAYADAT-IMAGE] Error loading cached image:', error);
+        }
+      }
+
+      const cachedImageUrl = await this.imageCache.getImageUrl(urlBase);
+      if (cachedImageUrl) {
+        this.cachedImageUrls.set(urlBase, cachedImageUrl);
+        imageElement.src = cachedImageUrl;
+        imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה הידעת';
+        console.log('[HAYADAT-IMAGE] Using offline cached image:', cachedImageUrl);
+        
+        if (isOnline) {
+          this.imageCache.loadAndCacheImage(finalUrl).then(cachedUrl => {
+            if (cachedUrl && cachedUrl !== finalUrl) {
+              this.cachedImageUrls.set(urlBase, cachedUrl);
+              if (imageElement.src === cachedImageUrl) {
+                imageElement.src = cachedUrl;
+              }
+            }
+          }).catch(err => console.warn('[HAYADAT-IMAGE] Background cache update failed:', err));
+        }
+        return;
+      }
+
+      if (forceUpdate || currentSrc !== urlBase) {
         const timestamp = Date.now();
         let finalSrc = finalUrl;
         if (finalUrl.includes('?')) {
@@ -863,6 +1055,14 @@ class BoardDataLoader {
         imageElement.src = finalSrc;
         imageElement.alt = currentUpdate.title || currentUpdate.name || 'תמונה הידעת';
         console.log('[HAYADAT-IMAGE] Updated image to:', imageElement.src);
+        
+        if (isOnline) {
+          this.imageCache.loadAndCacheImage(finalUrl).then(cachedUrl => {
+            if (cachedUrl && cachedUrl !== finalUrl) {
+              this.cachedImageUrls.set(urlBase, cachedUrl);
+            }
+          }).catch(err => console.warn('[HAYADAT-IMAGE] Background cache failed:', err));
+        }
       }
     } else {
       console.warn('[HAYADAT-IMAGE] No imageUrl found in update');
@@ -1054,8 +1254,21 @@ class BoardDataLoader {
 
   setupOnlineOfflineListeners() {
     window.addEventListener('online', async () => {
-      console.log('[NETWORK] Connection restored, reloading content');
-      await this.loadContent();
+      console.log('[NETWORK] Connection restored, checking for updates');
+      const boardId = this.getBoardId();
+      if (boardId) {
+        const contentKey = `shchakim_content_${boardId}`;
+        const cachedContent = localStorage.getItem(contentKey);
+        let cachedData = null;
+        if (cachedContent) {
+          try {
+            cachedData = JSON.parse(cachedContent);
+          } catch (e) {
+            console.warn('[NETWORK] Failed to parse cached content:', e);
+          }
+        }
+        await this.loadContent();
+      }
     });
 
     window.addEventListener('offline', () => {

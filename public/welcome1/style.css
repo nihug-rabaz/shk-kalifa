@@ -502,3 +502,7 @@
     transform: translateY(-100%);
   }
 }
+
+body > div > div.div-7 > div:nth-child(2) > div.text-wrapper-9 {
+  height: 129px;
+}
