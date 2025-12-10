@@ -503,6 +503,10 @@
   }
 }
 
+body > div > div.div-7 > div:nth-child(1) > div.text-wrapper-9 {
+  height: 129px;
+}
+
 body > div > div.div-7 > div:nth-child(2) > div.text-wrapper-9 {
   height: 129px;
 }
