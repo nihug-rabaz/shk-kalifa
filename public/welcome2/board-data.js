@@ -413,6 +413,48 @@ class BoardDataLoader {
     await this.updateHalacha(data);
   }
 
+  async updateParashaTitle(data) {
+    try {
+      const location = data?.boardInfo?.location;
+      if (location && location.latitude && location.longitude) {
+        const response = await fetch('/api/zmanim', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            latitude: location.latitude,
+            longitude: Math.abs(Number(location.longitude)),
+            date: new Date().toISOString().slice(0, 10)
+          })
+        });
+
+        if (response.ok) {
+          const zmanimData = await response.json();
+          const parasha = zmanimData.parasha;
+          
+          if (parasha) {
+            const titleElement = document.querySelector('.div-2 .div-wrapper .p');
+            if (titleElement) {
+              titleElement.textContent = `אגרת רבצ\"ר - פרשת ${parasha}`;
+              console.log('[PARASHA] Updated parasha title to:', parasha);
+            } else {
+              console.warn('[PARASHA] Title element not found, selector: .div-2 .div-wrapper .p');
+            }
+          } else {
+            console.warn('[PARASHA] No parasha found in zmanim data:', zmanimData);
+          }
+        } else {
+          console.warn('[PARASHA] Failed to fetch zmanim, status:', response.status);
+        }
+      } else {
+        console.warn('[PARASHA] No location data available:', data?.boardInfo);
+      }
+    } catch (e) {
+      console.error('[PARASHA] Failed to update parasha title', e);
+    }
+  }
+
   async updateHalacha(data) {
     const cacheKey = `halacha_${new Date().toISOString().slice(0, 10)}`;
     
@@ -456,28 +498,6 @@ class BoardDataLoader {
           }
         }
 
-        // עדכון כותרת האגרת לפי פרשת השבוע מהזמנים
-        try {
-          const location = data?.boardInfo?.location;
-          if (location && location.latitude && location.longitude) {
-            const zmanim = await this.fetchZmanim(location);
-            if (zmanim) {
-              const parasha =
-                zmanim.parasha ||
-                zmanim.parsha ||
-                zmanim.torahPortion ||
-                (zmanim.hebrew && zmanim.hebrew.parasha);
-              if (parasha) {
-                const titleElement = document.querySelector('.div-2 .div-wrapper .p');
-                if (titleElement) {
-                  titleElement.textContent = `אגרת רבצ\"ר - פרשת ${parasha}`;
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('[PARASHA] Failed to update parasha title', e);
-        }
       }
     } catch (error) {
       console.warn('[HALACHA] Error updating halacha:', error);
@@ -979,6 +999,7 @@ class BoardDataLoader {
       this.updateBoardInfo(data);
       this.updateTheme(data);
       await this.updatePrayerTimes(data);
+      await this.updateParashaTitle(data);
       this.updateUpdates(data);
       this.updateShuttleTimes(data);
       
