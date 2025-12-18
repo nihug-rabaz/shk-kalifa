@@ -6,7 +6,7 @@ import BoardManager from '@/utils/BoardManager';
 
 export default function DisplayPage() {
   const router = useRouter();
-  const [currentBoard, setCurrentBoard] = useState(2);
+  const [currentBoard, setCurrentBoard] = useState(1);
   const [isLinked, setIsLinked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [boardId, setBoardId] = useState<string>('');
@@ -94,9 +94,11 @@ export default function DisplayPage() {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'BOARD_DISPLAY_TIME') {
         const iframeRefs = (window as any).__iframeRefs || {};
-        let boardNum = 2;
+        let boardNum = 1;
         
-        if (iframeRefs[2] && event.source === iframeRefs[2].contentWindow) {
+        if (iframeRefs[1] && event.source === iframeRefs[1].contentWindow) {
+          boardNum = 1;
+        } else if (iframeRefs[2] && event.source === iframeRefs[2].contentWindow) {
           boardNum = 2;
         }
         
@@ -110,11 +112,35 @@ export default function DisplayPage() {
 
     return () => {
       window.removeEventListener('message', handleMessage);
+    };
+  }, [isLinked]);
+
+  useEffect(() => {
+    if (!isLinked) return;
+
+    const scheduleNextSwitch = () => {
+      if (switchTimeoutRef.current) {
+        clearTimeout(switchTimeoutRef.current);
+      }
+      
+      const currentTime = boardTimesRef.current[currentBoard] || 60000;
+      switchTimeoutRef.current = setTimeout(() => {
+        setCurrentBoard(prev => {
+          const nextBoard = prev === 1 ? 2 : 1;
+          console.log(`[DISPLAY] Switching to board ${nextBoard}`);
+          return nextBoard;
+        });
+      }, currentTime);
+    };
+    
+    scheduleNextSwitch();
+
+    return () => {
       if (switchTimeoutRef.current) {
         clearTimeout(switchTimeoutRef.current);
       }
     };
-  }, [isLinked]);
+  }, [isLinked, currentBoard]);
 
   if (isLoading || !isLinked) {
     return (
@@ -145,12 +171,46 @@ export default function DisplayPage() {
       <div style={{
         position: 'absolute',
         inset: 0,
-        opacity: 1,
+        opacity: currentBoard === 1 ? 1 : 0,
         width: '100%',
         height: '100%',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        transition: 'opacity 0.5s ease-in-out',
+        pointerEvents: currentBoard === 1 ? 'auto' : 'none'
+      }}>
+        <iframe
+          ref={(el) => {
+            if (el) {
+              const iframeRefs = (window as any).__iframeRefs || {};
+              iframeRefs[1] = el;
+              (window as any).__iframeRefs = iframeRefs;
+            }
+          }}
+          src={`/api/welcome-html?board=1&board_id=${boardId}`}
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            background: 'transparent'
+          }}
+          title="מסך ראשון"
+          allowFullScreen
+          scrolling="no"
+        />
+      </div>
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        opacity: currentBoard === 2 ? 1 : 0,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'opacity 0.5s ease-in-out',
+        pointerEvents: currentBoard === 2 ? 'auto' : 'none'
       }}>
         <iframe
           ref={(el) => {

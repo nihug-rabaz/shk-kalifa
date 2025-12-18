@@ -108,6 +108,7 @@ class BoardDataLoader {
     this.yeshivaImageIndex = 0;
     this.hayadatImageRotationInterval = null;
     this.hayadatImageIndex = 0;
+    this.hayadatUpdates = [];
     this.safetyRotationInterval = null;
     this.safetyUpdateIndex = 0;
     this.lastYeshivaUpdatesIds = null;
@@ -674,8 +675,9 @@ class BoardDataLoader {
     data.updates.forEach(update => {
       const title = (update.title || update.name || '').toLowerCase();
       const type = (update.type || '').toLowerCase();
+      const typeOriginal = (update.type || '').trim();
       
-      console.log('[UPDATES] Processing update:', { title, type, imageUrl: update.imageUrl, image: update.image });
+      console.log('[UPDATES] Processing update:', { title, type, typeOriginal, imageUrl: update.imageUrl, image: update.image });
       
       // מזהה עדכוני "דגשי בטיחות"
       if (type.includes('דגשי בטיחות') || type.includes('בטיחות') || title.includes('דגשי בטיחות') || title.includes('בטיחות')) {
@@ -683,7 +685,7 @@ class BoardDataLoader {
         console.log('[UPDATES] Added to safetyUpdates:', update);
       }
       // מזהה עדכוני "הידעת" בלבד
-      else if (title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
+      else if (typeOriginal === 'הידעת?' || type.includes('הידעת') || type.includes('הידעת?') || title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
         hayadatUpdates.push(update);
         console.log('[UPDATES] Added to hayadatUpdates:', update);
       } 
@@ -740,7 +742,15 @@ class BoardDataLoader {
       
       const hayadatImage = hayadatSection.querySelector('img');
       if (hayadatImage && hayadatUpdates.length > 0) {
-        this.displayHayadatImagesWithRotation(hayadatUpdates, hayadatImage);
+        const updatesChanged = JSON.stringify(this.hayadatUpdates) !== JSON.stringify(hayadatUpdates);
+        if (updatesChanged || !this.hayadatImageRotationInterval) {
+          this.displayHayadatImagesWithRotation(hayadatUpdates, hayadatImage);
+        } else {
+          this.hayadatUpdates = hayadatUpdates;
+        }
+      } else if (hayadatImage && hayadatUpdates.length === 0 && this.hayadatImageRotationInterval) {
+        clearTimeout(this.hayadatImageRotationInterval);
+        this.hayadatImageRotationInterval = null;
       }
     }
 
@@ -749,10 +759,19 @@ class BoardDataLoader {
     console.log('[UPDATES] Hayadat image element found:', !!hayadatImageWelcome1);
     if (hayadatImageWelcome1) {
       if (hayadatUpdates.length > 0) {
-        console.log('[UPDATES] Updating hayadat image with', hayadatUpdates.length, 'updates');
-        this.displayHayadatImagesWithRotation(hayadatUpdates, hayadatImageWelcome1);
+        const updatesChanged = JSON.stringify(this.hayadatUpdates) !== JSON.stringify(hayadatUpdates);
+        if (updatesChanged || !this.hayadatImageRotationInterval) {
+          console.log('[UPDATES] Updating hayadat image with', hayadatUpdates.length, 'updates');
+          this.displayHayadatImagesWithRotation(hayadatUpdates, hayadatImageWelcome1);
+        } else {
+          this.hayadatUpdates = hayadatUpdates;
+        }
       } else {
         console.log('[UPDATES] No hayadat updates to display');
+        if (this.hayadatImageRotationInterval) {
+          clearTimeout(this.hayadatImageRotationInterval);
+          this.hayadatImageRotationInterval = null;
+        }
       }
     }
   }
@@ -951,23 +970,30 @@ class BoardDataLoader {
     }
 
     this.hayadatImageIndex = 0;
+    this.hayadatUpdates = updates;
     this.showCurrentHayadatImage(updates, imageElement, true).then(() => {
       this.rotateToNextHayadatImage(updates, imageElement);
     });
   }
 
   rotateToNextHayadatImage(updates, imageElement) {
-    if (!updates || updates.length === 0) return;
+    if (!updates || updates.length === 0 || !imageElement) return;
 
+    this.hayadatUpdates = updates;
     const currentUpdate = updates[this.hayadatImageIndex];
-    if (!currentUpdate) return;
+    if (!currentUpdate) {
+      this.hayadatImageIndex = 0;
+      return;
+    }
 
     const displayTime = (currentUpdate.displayTime || 20) * 1000;
 
     this.hayadatImageRotationInterval = setTimeout(async () => {
-      this.hayadatImageIndex = (this.hayadatImageIndex + 1) % updates.length;
-      await this.showCurrentHayadatImage(updates, imageElement);
-      this.rotateToNextHayadatImage(updates, imageElement);
+      if (!this.hayadatUpdates || this.hayadatUpdates.length === 0 || !imageElement) return;
+      
+      this.hayadatImageIndex = (this.hayadatImageIndex + 1) % this.hayadatUpdates.length;
+      await this.showCurrentHayadatImage(this.hayadatUpdates, imageElement);
+      this.rotateToNextHayadatImage(this.hayadatUpdates, imageElement);
     }, displayTime);
   }
 
@@ -1217,10 +1243,11 @@ class BoardDataLoader {
     data.updates.forEach(update => {
       const title = (update.title || update.name || '').toLowerCase();
       const type = (update.type || '').toLowerCase();
+      const typeOriginal = (update.type || '').trim();
       
       if (type.includes('דגשי בטיחות') || type.includes('בטיחות') || title.includes('דגשי בטיחות') || title.includes('בטיחות')) {
         safetyUpdates.push(update);
-      } else if (title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
+      } else if (typeOriginal === 'הידעת?' || type.includes('הידעת') || type.includes('הידעת?') || title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
         hayadatUpdates.push(update);
       } else if (type.includes('ימי ישיבה') || title.includes('ימי ישיבה')) {
         yeshivaUpdates.push(update);

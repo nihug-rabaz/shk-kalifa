@@ -108,6 +108,7 @@ class BoardDataLoader {
     this.yeshivaImageIndex = 0;
     this.hayadatImageRotationInterval = null;
     this.hayadatImageIndex = 0;
+    this.hayadatUpdates = [];
     this.safetyRotationInterval = null;
     this.safetyUpdateIndex = 0;
     this.imageCache = new ImageCacheManager();
@@ -567,11 +568,12 @@ class BoardDataLoader {
     data.updates.forEach(update => {
       const title = (update.title || update.name || '').toLowerCase();
       const type = (update.type || '').toLowerCase();
+      const typeOriginal = (update.type || '').trim();
       
       if (type.includes('דגשי בטיחות') || type.includes('בטיחות') || title.includes('דגשי בטיחות') || title.includes('בטיחות')) {
         safetyUpdates.push(update);
       }
-      else if (title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
+      else if (typeOriginal === 'הידעת?' || type.includes('הידעת') || type.includes('הידעת?') || title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
         hayadatUpdates.push(update);
       } 
       else if (type.includes('ימי ישיבה') || title.includes('ימי ישיבה')) {
@@ -625,8 +627,21 @@ class BoardDataLoader {
       
       // עדכון התמונה - רק מעדכוני "הידעת" עם החלפה אוטומטית
       const hayadatImage = hayadatSection.querySelector('img');
+      console.log('[UPDATES] Hayadat section found:', !!hayadatSection, 'Image found:', !!hayadatImage, 'Updates count:', hayadatUpdates.length);
       if (hayadatImage && hayadatUpdates.length > 0) {
-        this.displayHayadatImagesWithRotation(hayadatUpdates, hayadatImage);
+        console.log('[UPDATES] Hayadat updates:', hayadatUpdates.map(u => ({ id: u.id, title: u.title, imageUrl: u.imageUrl })));
+        const updatesChanged = JSON.stringify(this.hayadatUpdates) !== JSON.stringify(hayadatUpdates);
+        if (updatesChanged || !this.hayadatImageRotationInterval) {
+          console.log('[UPDATES] Starting hayadat image rotation, changed:', updatesChanged);
+          this.displayHayadatImagesWithRotation(hayadatUpdates, hayadatImage);
+        } else {
+          this.hayadatUpdates = hayadatUpdates;
+        }
+      } else if (hayadatImage && hayadatUpdates.length === 0 && this.hayadatImageRotationInterval) {
+        clearTimeout(this.hayadatImageRotationInterval);
+        this.hayadatImageRotationInterval = null;
+      } else {
+        console.log('[UPDATES] Cannot display hayadat images - image:', !!hayadatImage, 'updates:', hayadatUpdates.length);
       }
     }
   }
@@ -804,40 +819,60 @@ class BoardDataLoader {
   }
 
   displayHayadatImagesWithRotation(updates, imageElement) {
-    if (!updates || updates.length === 0 || !imageElement) return;
+    if (!updates || updates.length === 0 || !imageElement) {
+      console.log('[HAYADAT-IMAGE] Cannot display: updates=', updates?.length, 'imageElement=', !!imageElement);
+      return;
+    }
+
+    console.log('[HAYADAT-IMAGE] Starting rotation with', updates.length, 'updates');
 
     if (this.hayadatImageRotationInterval) {
       clearTimeout(this.hayadatImageRotationInterval);
+      this.hayadatImageRotationInterval = null;
     }
 
     this.hayadatImageIndex = 0;
+    this.hayadatUpdates = updates;
     this.showCurrentHayadatImage(updates, imageElement).then(() => {
       this.rotateToNextHayadatImage(updates, imageElement);
     });
   }
 
   rotateToNextHayadatImage(updates, imageElement) {
-    if (!updates || updates.length === 0) return;
+    if (!updates || updates.length === 0 || !imageElement) return;
 
+    this.hayadatUpdates = updates;
     const currentUpdate = updates[this.hayadatImageIndex];
-    if (!currentUpdate) return;
+    if (!currentUpdate) {
+      this.hayadatImageIndex = 0;
+      return;
+    }
 
     const displayTime = (currentUpdate.displayTime || 20) * 1000;
 
     this.hayadatImageRotationInterval = setTimeout(async () => {
-      this.hayadatImageIndex = (this.hayadatImageIndex + 1) % updates.length;
-      await this.showCurrentHayadatImage(updates, imageElement);
-      this.rotateToNextHayadatImage(updates, imageElement);
+      if (!this.hayadatUpdates || this.hayadatUpdates.length === 0 || !imageElement) return;
+      
+      this.hayadatImageIndex = (this.hayadatImageIndex + 1) % this.hayadatUpdates.length;
+      await this.showCurrentHayadatImage(this.hayadatUpdates, imageElement);
+      this.rotateToNextHayadatImage(this.hayadatUpdates, imageElement);
     }, displayTime);
   }
 
   async showCurrentHayadatImage(updates, imageElement) {
-    if (updates.length === 0) return;
+    if (updates.length === 0) {
+      console.log('[HAYADAT-IMAGE] No updates to display');
+      return;
+    }
 
     const currentUpdate = updates[this.hayadatImageIndex];
-    if (!currentUpdate) return;
+    if (!currentUpdate) {
+      console.log('[HAYADAT-IMAGE] No current update at index', this.hayadatImageIndex);
+      return;
+    }
 
     const imageUrl = currentUpdate.imageUrl || currentUpdate.image || currentUpdate.img;
+    console.log('[HAYADAT-IMAGE] Showing image', this.hayadatImageIndex + 1, 'of', updates.length, 'imageUrl:', imageUrl);
     if (imageUrl) {
       let finalUrl = '';
       if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
@@ -1101,11 +1136,12 @@ class BoardDataLoader {
     data.updates.forEach(update => {
       const title = (update.title || update.name || '').toLowerCase();
       const type = (update.type || '').toLowerCase();
+      const typeOriginal = (update.type || '').trim();
       
       if (type.includes('דגשי בטיחות') || type.includes('בטיחות') || title.includes('דגשי בטיחות') || title.includes('בטיחות')) {
         safetyUpdates.push(update);
       }
-      else if (title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
+      else if (typeOriginal === 'הידעת?' || type.includes('הידעת') || type.includes('הידעת?') || title.includes('הידעת') || title.includes('hayadat') || title.includes('ידעת')) {
         hayadatUpdates.push(update);
       } else if (type.includes('ימי ישיבה') || title.includes('ימי ישיבה')) {
         yeshivaUpdates.push(update);
