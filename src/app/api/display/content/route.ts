@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 
 const API_BASE = 'https://shchakim.rabaz.co.il';
 
@@ -100,11 +102,22 @@ export async function GET(req: Request) {
       return (id !== null && id !== undefined && id !== false && id !== '') ? id : null;
     })();
 
+    // טען את אגרת הרבצר מהקובץ אם אין letter מה-API
+    let rabbanutLetter = boardInfo.letter || externalContent?.letter || null;
+    if (!rabbanutLetter) {
+      try {
+        const letterPath = join(process.cwd(), 'data', 'rabbanut-letter.txt');
+        rabbanutLetter = await readFile(letterPath, 'utf-8');
+      } catch (error) {
+        console.warn('[PROXY] Display-content: Could not load rabbanut letter file:', error);
+      }
+    }
+
     const payload = {
       boardId: boardInfo.board_bid || boardId,
       prayers: boardInfo.prayers || [],
       updates: boardInfo.updates || [],
-      letter: boardInfo.letter || null,
+      letter: rabbanutLetter,
       halacha: null,
       orders: boardInfo.orders || [],
       durations: boardInfo.durations || {},
