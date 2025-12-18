@@ -102,15 +102,16 @@ export async function GET(req: Request) {
       return (id !== null && id !== undefined && id !== false && id !== '') ? id : null;
     })();
 
-    // טען את אגרת הרבצר מהקובץ אם אין letter מה-API
-    let rabbanutLetter = boardInfo.letter || externalContent?.letter || null;
-    if (!rabbanutLetter) {
-      try {
-        const letterPath = join(process.cwd(), 'data', 'rabbanut-letter.txt');
-        rabbanutLetter = await readFile(letterPath, 'utf-8');
-      } catch (error) {
-        console.warn('[PROXY] Display-content: Could not load rabbanut letter file:', error);
-      }
+    // טען את אגרת הרבצר מהקובץ המקומי (תמיד משתמש בטקסט החדש)
+    let rabbanutLetter = null;
+    try {
+      const letterPath = join(process.cwd(), 'data', 'rabbanut-letter.txt');
+      rabbanutLetter = await readFile(letterPath, 'utf-8');
+      console.log('[PROXY] Display-content: Loaded rabbanut letter from local file');
+    } catch (error) {
+      console.warn('[PROXY] Display-content: Could not load rabbanut letter file, using API letter:', error);
+      // Fallback ל-letter מה-API אם הקובץ לא קיים
+      rabbanutLetter = boardInfo.letter || externalContent?.letter || null;
     }
 
     const payload = {

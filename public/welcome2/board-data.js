@@ -219,8 +219,10 @@ class BoardDataLoader {
   }
 
   async loadContent() {
+    console.log('[LOAD] loadContent called');
     try {
       const boardId = this.getBoardId();
+      console.log('[LOAD] Board ID:', boardId);
       if (!boardId) {
         console.warn('No board ID available, cannot load content');
         return;
@@ -410,7 +412,6 @@ class BoardDataLoader {
 
   async updatePrayerTimes(data) {
     console.log('[PRAYERS] Welcome2 has no prayer section, skipping');
-    await this.updateHalacha(data);
   }
 
   async updateParashaTitle(data) {
@@ -457,33 +458,43 @@ class BoardDataLoader {
 
   async updateHalacha(data) {
     const cacheKey = `halacha_${new Date().toISOString().slice(0, 10)}`;
+    console.log('[HALACHA] updateHalacha called! Starting to fetch halacha...');
+    console.log('[HALACHA] About to call fetch("/api/halacha/daily")');
     
     try {
+      console.log('[HALACHA] Calling fetch now...');
       const response = await fetch('/api/halacha/daily');
+      console.log('[HALACHA] Fetch completed, got response');
+      console.log('[HALACHA] Response status:', response.status, response.ok);
+      
       if (response.ok) {
         const halachaData = await response.json();
+        console.log('[HALACHA] Received data:', halachaData);
         const halachaItems = halachaData.items || [];
+        console.log('[HALACHA] Items count:', halachaItems.length);
         
         try {
           localStorage.setItem(cacheKey, JSON.stringify(halachaItems));
         } catch (e) {
-          console.warn('Failed to cache halacha:', e);
+          console.warn('[HALACHA] Failed to cache halacha:', e);
         }
         
         if (halachaItems.length > 0) {
           const halachaContainer = document.querySelector('.div-wrapper-3');
+          console.log('[HALACHA] Container found:', !!halachaContainer);
+          
           if (halachaContainer) {
-            // נוודא שיש <p> בפנים, ואם לא - ניצור אחד
             let halachaContent = halachaContainer.querySelector('p.text-wrapper-10');
             if (!halachaContent) {
               halachaContent = document.createElement('p');
               halachaContent.className = 'text-wrapper-10 sliding-text';
               halachaContainer.appendChild(halachaContent);
+              console.log('[HALACHA] Created new halacha content element');
             } else {
-              // ודא שיש גם את קלאס האנימציה
               if (!halachaContent.classList.contains('sliding-text')) {
                 halachaContent.classList.add('sliding-text');
               }
+              console.log('[HALACHA] Using existing halacha content element');
             }
 
             const combined = halachaItems
@@ -492,19 +503,31 @@ class BoardDataLoader {
               .filter(Boolean)
               .join('<br/><br/>');
             
+            console.log('[HALACHA] Combined text length:', combined.length);
+            
             if (combined) {
               halachaContent.innerHTML = combined;
+              console.log('[HALACHA] Updated halacha content successfully');
+            } else {
+              console.warn('[HALACHA] No combined text to display');
             }
+          } else {
+            console.error('[HALACHA] Container .div-wrapper-3 not found!');
           }
+        } else {
+          console.warn('[HALACHA] No halacha items found for today');
         }
-
+      } else {
+        const errorText = await response.text();
+        console.error('[HALACHA] API error:', response.status, errorText);
       }
     } catch (error) {
-      console.warn('[HALACHA] Error updating halacha:', error);
+      console.error('[HALACHA] Error updating halacha:', error);
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         try {
           const halachaItems = JSON.parse(cached);
+          console.log('[HALACHA] Using cached data, items count:', halachaItems.length);
           if (halachaItems.length > 0) {
             const halachaContainer = document.querySelector('.div-wrapper-3');
             if (halachaContainer) {
@@ -514,6 +537,7 @@ class BoardDataLoader {
                 halachaContent.className = 'text-wrapper-10 sliding-text';
                 halachaContainer.appendChild(halachaContent);
               }
+              
               const combined = halachaItems
                 .slice(0, 2)
                 .map(item => item.summary || item.text || item.content || '')
@@ -521,49 +545,15 @@ class BoardDataLoader {
                 .join('<br/><br/>');
               if (combined) {
                 halachaContent.innerHTML = combined;
+                console.log('[HALACHA] Updated from cache');
               }
             }
           }
         } catch (e) {
-          console.warn('Failed to parse cached halacha:', e);
+          console.warn('[HALACHA] Failed to parse cached halacha:', e);
         }
       }
     }
-  
-
-    // טעינת זמנים דינמיים אם יש location
-    let zmanimTimes = null;
-    if (data?.boardInfo?.location) {
-      console.log('[PRAYERS] Fetching zmanim for location:', data.boardInfo.location);
-      zmanimTimes = await this.fetchZmanim(data.boardInfo.location);
-      console.log('[PRAYERS] Zmanim times received:', zmanimTimes);
-    }
-
-    // הצגת כל התפילות ללא סינון לפי יום השבוע
-    let prayers = data.prayers;
-    
-    // אם יש תפילות כפולות (עם אותו שם), נשמור רק את הראשונה מכל סוג
-    const seenPrayers = new Set();
-    prayers = prayers.filter(p => {
-      const title = (p.title || '').toLowerCase();
-      if (title.includes('שחרית') || title.includes('shacharit')) {
-        if (seenPrayers.has('shacharit')) return false;
-        seenPrayers.add('shacharit');
-        return true;
-      } else if (title.includes('מנחה') || title.includes('mincha')) {
-        const minchaCount = Array.from(seenPrayers).filter(k => k.startsWith('mincha')).length;
-        if (minchaCount >= 2) return false;
-        seenPrayers.add(`mincha${minchaCount}`);
-        return true;
-      } else if (title.includes('ערבית') || title.includes('arvit') || title.includes('maariv')) {
-        if (seenPrayers.has('maariv')) return false;
-        seenPrayers.add('maariv');
-        return true;
-      }
-      return true;
-    });
-
-    console.log('[PRAYERS] Welcome2 does not display prayers, skipping prayer list update');
   }
 
   updateUpdates(data) {
@@ -989,17 +979,88 @@ class BoardDataLoader {
     // אם יגיעו נתונים, ניתן להוסיף כאן
   }
 
+  updateLetter(data) {
+    if (!data?.letter) {
+      console.log('[LETTER] No letter in data');
+      return;
+    }
+
+    console.log('[LETTER] Updating letter content, length:', data.letter.length);
+    
+    const text = data.letter.trim();
+    const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+    
+    let part1 = '';
+    let part2 = '';
+    let part3 = '';
+    
+    const allText = text.replace(/\n\s*\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    const allWords = allText.split(/\s+/).filter(w => w.length > 0);
+    
+    const totalWords = allWords.length;
+    const maxWordsInColumn3 = 100;
+    
+    const wordsForColumns1And2 = totalWords - maxWordsInColumn3;
+    const wordsPerColumn1 = Math.floor(wordsForColumns1And2 / 2);
+    const wordsPerColumn2 = wordsForColumns1And2 - wordsPerColumn1;
+    const wordsPerColumn3 = Math.min(maxWordsInColumn3, totalWords - wordsPerColumn1 - wordsPerColumn2);
+    
+    const words1 = allWords.slice(0, wordsPerColumn1);
+    const words2 = allWords.slice(wordsPerColumn1, wordsPerColumn1 + wordsPerColumn2);
+    const words3 = allWords.slice(wordsPerColumn1 + wordsPerColumn2);
+    
+    part1 = words1.join(' ');
+    part2 = words2.join(' ');
+    part3 = words3.join(' ');
+    
+    console.log('[LETTER] Equal distribution:', wordsPerColumn1, wordsPerColumn2, words3.length, 'words per column, total:', totalWords);
+    
+    const element2 = document.querySelector('.text-wrapper-2');
+    if (element2) {
+      element2.setAttribute('dir', 'rtl');
+      element2.innerHTML = part1;
+      console.log('[LETTER] Updated .text-wrapper-2');
+    }
+    
+    const element3 = document.querySelector('.text-wrapper-3');
+    if (element3) {
+      element3.setAttribute('dir', 'rtl');
+      element3.innerHTML = part2;
+      console.log('[LETTER] Updated .text-wrapper-3');
+    }
+    
+    const element4 = document.querySelector('.text-wrapper-4');
+    if (element4) {
+      element4.setAttribute('dir', 'rtl');
+      element4.innerHTML = part3;
+      console.log('[LETTER] Updated .text-wrapper-4');
+    } else {
+      console.warn('[LETTER] Letter elements not found');
+    }
+    
+    const div3 = document.querySelector('.div-3');
+    if (div3) {
+      div3.setAttribute('dir', 'rtl');
+    }
+  }
+
   async updateAll(data) {
     if (!data) {
       console.warn('[UPDATE] No data provided to updateAll');
       return;
     }
     
+    console.log('[UPDATE] Starting updateAll, will call updateHalacha');
+    
     try {
       this.updateBoardInfo(data);
       this.updateTheme(data);
       await this.updatePrayerTimes(data);
       await this.updateParashaTitle(data);
+      console.log('[UPDATE] About to call updateHalacha...');
+      await this.updateHalacha(data);
+      console.log('[UPDATE] updateHalacha completed');
+      this.updateLetter(data);
       this.updateUpdates(data);
       this.updateShuttleTimes(data);
       
@@ -1116,6 +1177,7 @@ class BoardDataLoader {
   }
 
   start() {
+    console.log('[LOADER] BoardDataLoader.start() called');
     this.loadContent();
     this.setupPeriodicUpdates();
     this.setupOnlineOfflineListeners();

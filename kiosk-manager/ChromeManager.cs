@@ -10,6 +10,8 @@ namespace KioskManager
     {
         private Process? _chromeProcess;
         private readonly AppConfig _config;
+        private bool _isStarting = false;
+        private DateTime _lastStartAttempt = DateTime.MinValue;
 
         public ChromeManager()
         {
@@ -52,6 +54,24 @@ namespace KioskManager
                 return false;
             }
 
+            if (_isStarting)
+            {
+                Logger.Info("Chrome is already starting, skipping...");
+                return false;
+            }
+
+            if (IsChromeRunning())
+            {
+                Logger.Info("Chrome is already running, skipping...");
+                return false;
+            }
+
+            if ((DateTime.Now - _lastStartAttempt).TotalSeconds < 10)
+            {
+                Logger.Info("Chrome start was attempted recently, waiting...");
+                return false;
+            }
+
             string? chromePath = FindChromePath();
             if (chromePath == null)
             {
@@ -59,12 +79,16 @@ namespace KioskManager
                 return false;
             }
 
-            StopKiosk();
+            _isStarting = true;
+            _lastStartAttempt = DateTime.Now;
 
             try
             {
+                StopKiosk();
+                System.Threading.Thread.Sleep(2000);
+
                 string url = $"http://localhost:{_config.Port}";
-                string arguments = $"{_config.ChromeKioskArgs} \"{url}\"";
+                string arguments = $"{_config.ChromeKioskArgs} --disable-session-crashed-bubble --disable-restore-session-state --no-first-run --no-default-browser-check \"{url}\"";
 
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
@@ -77,13 +101,27 @@ namespace KioskManager
                 _chromeProcess = Process.Start(startInfo);
                 if (_chromeProcess != null)
                 {
-                    Logger.Info($"Chrome started in kiosk mode (PID: {_chromeProcess.Id})");
-                    return true;
+                    System.Threading.Thread.Sleep(3000);
+                    if (!_chromeProcess.HasExited)
+                    {
+                        Logger.Info($"Chrome started in kiosk mode (PID: {_chromeProcess.Id})");
+                        _isStarting = false;
+                        return true;
+                    }
+                    else
+                    {
+                        Logger.Warning("Chrome process exited immediately after start");
+                        _chromeProcess = null;
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Logger.Error($"Exception starting Chrome: {ex.Message}");
+            }
+            finally
+            {
+                _isStarting = false;
             }
 
             return false;
@@ -126,12 +164,45 @@ namespace KioskManager
 
         public bool IsChromeRunning()
         {
-            if (_chromeProcess != null && !_chromeProcess.HasExited)
+            try
             {
-                return true;
+                if (_chromeProcess != null && !_chromeProcess.HasExited)
+                {
+                    try
+                    {
+                        _chromeProcess.Refresh();
+                        return !_chromeProcess.HasExited;
+                    }
+                    catch
+                    {
+                        _chromeProcess = null;
+                    }
+                }
+
+                Process[] chromeProcesses = Process.GetProcessesByName("chrome");
+                if (chromeProcesses.Length > 0)
+                {
+                    foreach (var proc in chromeProcesses)
+                    {
+                        try
+                        {
+                            if (!proc.HasExited && proc.MainWindowHandle != IntPtr.Zero)
+                            {
+                                return true;
+                            }
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Error checking Chrome status: {ex.Message}");
             }
 
-            return Process.GetProcessesByName("chrome").Length > 0;
+            return false;
         }
 
         public void ReloadPage()

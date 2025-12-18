@@ -35,13 +35,13 @@ export async function GET(request: NextRequest) {
       });
       htmlContent = htmlContent.replace(/src="responsive\.js"/g, `src="${basePath}/responsive.js"`);
       htmlContent = htmlContent.replace(/src="time\.js"/g, `src="${basePath}/time.js"`);
+      htmlContent = htmlContent.replace(/src="board-data\.js"/g, `src="${basePath}/board-data.js"`);
 
       const dataScript = `
         <script>
           ${board_id ? `window.BOARD_ID = '${board_id}';` : ''}
           ${board_id ? `window.BOARD_DATA_API = '/api/board-data?board_id=${board_id}';` : ''}
         </script>
-        <script src="${basePath}/board-data.js"></script>
       `;
       htmlContent = htmlContent.replace('</head>', `${dataScript}</head>`);
 

@@ -133,13 +133,14 @@
   height: 682px;
   margin-top: -1.00px;
   font-family: "Polin-A-Regular", Helvetica;
+  overflow: hidden;
+  direction: rtl;
   font-weight: 400;
   color: #000000;
-  font-size: 34px;
+  font-size: 30px;
   text-align: justify;
   letter-spacing: 0;
-  line-height: normal;
-  direction: rtl;
+  line-height: 1.4;
 }
 
 .frame .text-wrapper-3 {
@@ -148,27 +149,30 @@
   height: 707px;
   margin-top: -1.00px;
   font-family: "Polin-A-Regular", Helvetica;
+  overflow: hidden;
+  direction: rtl;
   font-weight: 400;
   color: #000000;
-  font-size: 34px;
+  font-size: 30px;
   text-align: justify;
   letter-spacing: 0;
-  line-height: normal;
-  direction: rtl;
+  line-height: 1.4;
 }
 
 .frame .text-wrapper-4 {
   position: relative;
   width: 733px;
+  height: 707px;
   margin-top: -1.00px;
   font-family: "Polin-A-Regular", Helvetica;
   font-weight: 400;
   color: #000000;
-  font-size: 34px;
+  font-size: 30px;
   text-align: justify;
   letter-spacing: 0;
-  line-height: normal;
+  line-height: 1.4;
   direction: rtl;
+  overflow: hidden;
 }
 
 .frame .group-2 {

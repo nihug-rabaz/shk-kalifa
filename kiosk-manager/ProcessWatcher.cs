@@ -73,6 +73,7 @@ namespace KioskManager
                     if (_config.AutoStartChrome && !_chromeManager.IsChromeRunning() && _healthMonitor.IsHealthy)
                     {
                         Logger.Info("Chrome is not running but app is healthy - starting Chrome");
+                        await Task.Delay(5000, cancellationToken);
                         _chromeManager.StartKiosk();
                     }
 

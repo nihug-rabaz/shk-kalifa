@@ -127,10 +127,11 @@ namespace KioskManager
                 _usbMonitor.Start();
                 _processWatcher.Start();
 
-                await Task.Delay(10000);
+                await Task.Delay(15000);
 
                 if (_healthMonitor.IsHealthy && _chromeManager.FindChromePath() != null)
                 {
+                    await Task.Delay(5000);
                     _chromeManager.StartKiosk();
                 }
 
@@ -161,7 +162,11 @@ namespace KioskManager
                 if (Config.Instance.AutoStartChrome && !_chromeManager.IsChromeRunning() && _healthMonitor.IsHealthy)
                 {
                     Logger.Info("Chrome is not running and health is healthy - starting Chrome");
-                    _chromeManager.StartKiosk();
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(5000);
+                        _chromeManager.StartKiosk();
+                    });
                 }
             }
             else

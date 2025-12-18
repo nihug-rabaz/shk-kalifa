@@ -60,7 +60,7 @@ export async function GET(req: Request) {
     }
 
     const dateHebrew = dateHalachot[0].date_hebrew;
-    const items = dateHalachot.slice(0, 4).map(h => ({
+    const items = dateHalachot.map(h => ({
       title: h.title,
       summary: h.summary,
       text: h.summary,

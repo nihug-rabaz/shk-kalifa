@@ -6,7 +6,7 @@ import BoardManager from '@/utils/BoardManager';
 
 export default function DisplayPage() {
   const router = useRouter();
-  const [currentBoard, setCurrentBoard] = useState(1);
+  const [currentBoard, setCurrentBoard] = useState(2);
   const [isLinked, setIsLinked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [boardId, setBoardId] = useState<string>('');
@@ -94,11 +94,9 @@ export default function DisplayPage() {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'BOARD_DISPLAY_TIME') {
         const iframeRefs = (window as any).__iframeRefs || {};
-        let boardNum = 1;
+        let boardNum = 2;
         
-        if (iframeRefs[1] && event.source === iframeRefs[1].contentWindow) {
-          boardNum = 1;
-        } else if (iframeRefs[2] && event.source === iframeRefs[2].contentWindow) {
+        if (iframeRefs[2] && event.source === iframeRefs[2].contentWindow) {
           boardNum = 2;
         }
         
@@ -110,33 +108,13 @@ export default function DisplayPage() {
 
     window.addEventListener('message', handleMessage);
 
-    const scheduleNextSwitch = () => {
-      if (switchTimeoutRef.current) {
-        clearTimeout(switchTimeoutRef.current);
-      }
-
-      const currentTime = boardTimesRef.current[currentBoard] || 60000;
-      console.log(`[DISPLAY] Scheduling switch after ${currentTime}ms for board ${currentBoard}`);
-
-      switchTimeoutRef.current = setTimeout(() => {
-        setCurrentBoard(prev => {
-          const nextBoard = prev === 1 ? 2 : 1;
-          console.log(`[DISPLAY] Switching from board ${prev} to ${nextBoard}`);
-          scheduleNextSwitch();
-          return nextBoard;
-        });
-      }, currentTime);
-    };
-
-    scheduleNextSwitch();
-
     return () => {
       window.removeEventListener('message', handleMessage);
       if (switchTimeoutRef.current) {
         clearTimeout(switchTimeoutRef.current);
       }
     };
-  }, [isLinked, currentBoard]);
+  }, [isLinked]);
 
   if (isLoading || !isLinked) {
     return (
@@ -167,44 +145,9 @@ export default function DisplayPage() {
       <div style={{
         position: 'absolute',
         inset: 0,
-        opacity: currentBoard === 1 ? 1 : 0,
-        transition: 'opacity 1.5s ease-in-out',
+        opacity: 1,
         width: '100%',
         height: '100%',
-        zIndex: currentBoard === 1 ? 2 : 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <iframe
-          ref={(el) => {
-            if (el) {
-              const iframeRefs = (window as any).__iframeRefs || {};
-              iframeRefs[1] = el;
-              (window as any).__iframeRefs = iframeRefs;
-            }
-          }}
-          src={`/api/welcome-html?board=1&board_id=${boardId}`}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            background: 'transparent'
-          }}
-          title="מסך ראשון"
-          allowFullScreen
-          scrolling="no"
-        />
-      </div>
-      
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        opacity: currentBoard === 2 ? 1 : 0,
-        transition: 'opacity 1.5s ease-in-out',
-        width: '100%',
-        height: '100%',
-        zIndex: currentBoard === 2 ? 2 : 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
@@ -229,7 +172,6 @@ export default function DisplayPage() {
           scrolling="no"
         />
       </div>
-      
     </div>
   );
 }
