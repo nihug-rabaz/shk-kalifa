@@ -1,0 +1,3 @@
+   winget install --id Microsoft.DotNet.SDK.8 -e
+      cd "C:\Users\Lenovo\Downloads\shk-kalifa\kiosk-manager"
+   dotnet build -c Release
