@@ -245,25 +245,23 @@
 }
 
 .frame .text-wrapper-9 {
-  width: 549px;
-  height: 96px;
-  font-family: 'Ploni ML v2 AAA', Helvetica;
+  max-width: 580px;
+  width: 100%;
+  font-family: "Ploni ML v2 AAA-Bold", Helvetica;
   font-style: normal;
   font-weight: 700;
   font-size: 60px;
-  line-height: 45px;
+  line-height: 1.2;
   text-align: center;
-  color: #1C4080;
-  flex: none;
-  order: 0;
-  flex-grow: 0;
+  color: #1c4080;
   position: relative;
   direction: rtl;
 }
 
 .frame .text-wrapper-9 .prayer-location {
   font-size: 48px;
-  line-height: 36px;
+  line-height: 1.2;
+  display: block;
 }
 
 .frame .frame-wrapper {
@@ -501,12 +499,4 @@
   100% {
     transform: translateY(-100%);
   }
-}
-
-body > div > div.div-7 > div:nth-child(1) > div.text-wrapper-9 {
-  height: 129px;
-}
-
-body > div > div.div-7 > div:nth-child(2) > div.text-wrapper-9 {
-  height: 129px;
 }
