@@ -76,19 +76,6 @@
   position: relative;
 }
 
-.frame .text-wrapper-2 {
-  margin-top: -0.84px;
-  font-size: 43.7px;
-  line-height: 43.7px;
-  position: relative;
-  align-self: stretch;
-  font-family: "Ploni ML v2 AAA-Medium", Helvetica;
-  font-weight: 500;
-  color: #1c4080;
-  letter-spacing: 0;
-  direction: rtl;
-}
-
 .frame .div-4 {
   display: flex;
   align-items: center;

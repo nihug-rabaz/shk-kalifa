@@ -460,6 +460,18 @@
           }
         }
         
+        if (newData.letter) {
+          const existingLetterId = existing.letter?.id;
+          const newLetterId = newData.letter.id;
+          const letterChanged = existingLetterId !== newLetterId || 
+                               JSON.stringify(existing.letter || {}) !== JSON.stringify(newData.letter);
+          if (letterChanged) {
+            merged.letter = { ...newData.letter };
+            hasChanges = true;
+            console.log('[MERGE] Letter updated:', newLetterId, 'Title:', newData.letter.title);
+          }
+        }
+        
         merged._hasChanges = hasChanges;
         return merged;
       } catch (e) {
@@ -567,7 +579,12 @@
             
             if (response.ok) {
               const newData = await response.json();
+              console.log('[LOAD] New data from API:', newData);
+              console.log('[LOAD] New letter from API:', newData.letter);
+              
               const mergedData = this.mergeData(cachedData, newData);
+              
+              console.log('[LOAD] Merged data letter:', mergedData.letter);
               
               const hasChanges = mergedData._hasChanges;
               delete mergedData._hasChanges;
@@ -577,10 +594,17 @@
               this.safeSetLocalStorage(contentTimestampKey, Date.now().toString());
               
               if (hasChanges) {
+                console.log('[LOAD] ✅ Data changed, updating display');
                 safeLog('[ONLINE] Data changed, updating display');
                 await this.updateAll(mergedData);
               } else {
-                safeLog('[ONLINE] No changes detected');
+                console.log('[LOAD] ⚠️ No changes detected, but forcing letter update if exists');
+                if (mergedData.letter) {
+                  console.log('[LOAD] Forcing letter update even if no other changes');
+                  await this.updateLetter(mergedData);
+                } else {
+                  safeLog('[ONLINE] No changes detected');
+                }
               }
             } else {
               safeWarn('[ONLINE] Server response not OK:', response.status);
@@ -782,7 +806,8 @@
             if (parasha) {
               const titleElement = document.querySelector('.div-2 .div-wrapper .p');
               if (titleElement) {
-                titleElement.textContent = `אגרת רבצ"ר - פרשת ${parasha}`;
+                titleElement.textContent = `איגרת רבצ"ר - פרשת ${parasha}`;
+                titleElement.setAttribute('dir', 'rtl');
                 safeLog('[PARASHA] Updated parasha title to:', parasha);
               } else {
                 safeWarn('[PARASHA] Title element not found');
@@ -1457,54 +1482,205 @@
 
     updateLetter(data) {
       try {
+        console.log('========================================');
+        console.log('[LETTER] ===== STARTING LETTER UPDATE =====');
+        console.log('[LETTER] Data received:', data);
+        
         if (!data?.letter) {
+          console.error('[LETTER] ❌ No letter in data');
           safeLog('[LETTER] No letter in data');
           return;
         }
 
-        safeLog('[LETTER] Updating letter content, length:', data.letter.length);
+        const letter = data.letter;
+        console.log('[LETTER] Letter object:', letter);
+        console.log('[LETTER] Letter type:', typeof letter);
+        console.log('[LETTER] Letter.html exists:', !!letter.html);
+        console.log('[LETTER] Letter.html type:', typeof letter.html);
         
-        const text = data.letter.trim();
-        const allText = text.replace(/\n\s*\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-        const allWords = allText.split(/\s+/).filter(w => w.length > 0);
+        const htmlContent = letter.html || letter;
+        
+        if (!htmlContent) {
+          console.error('[LETTER] ❌ No HTML content in letter');
+          safeLog('[LETTER] No HTML content in letter');
+          return;
+        }
+
+        console.log('[LETTER] HTML content length:', htmlContent.length);
+        console.log('[LETTER] HTML content type:', typeof htmlContent);
+        console.log('[LETTER] HTML content first 200 chars:', htmlContent.substring(0, 200));
+        safeLog('[LETTER] Updating letter content, HTML length:', htmlContent.length);
+        
+        let textContent = '';
+        
+        if (typeof htmlContent === 'string') {
+          console.log('[LETTER] Parsing HTML string...');
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = htmlContent;
+          
+          console.log('[LETTER] Temp div created, innerHTML length:', tempDiv.innerHTML.length);
+          console.log('[LETTER] Temp div textContent before walker:', tempDiv.textContent?.substring(0, 100));
+          
+          const walker = document.createTreeWalker(
+            tempDiv,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+          );
+          
+          const textNodes = [];
+          let node;
+          let nodeCount = 0;
+          while (node = walker.nextNode()) {
+            nodeCount++;
+            const text = node.textContent.trim();
+            if (text) {
+              textNodes.push(text);
+            }
+          }
+          
+          console.log('[LETTER] TreeWalker found', nodeCount, 'text nodes');
+          console.log('[LETTER] Text nodes array length:', textNodes.length);
+          console.log('[LETTER] First 5 text nodes:', textNodes.slice(0, 5));
+          
+          textContent = textNodes.join(' ');
+          console.log('[LETTER] Joined text content length:', textContent.length);
+        } else {
+          console.log('[LETTER] HTML content is not a string, converting...');
+          textContent = String(htmlContent);
+        }
+        
+        console.log('[LETTER] Text content BEFORE cleaning:', textContent.substring(0, 200));
+        
+        textContent = textContent
+          .replace(/&nbsp;/gi, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/\u00A0/g, ' ')
+          .replace(/[\u200B-\u200D\uFEFF]/g, '')
+          .replace(/\s+/g, ' ')
+          .replace(/\n\s*\n/g, ' ')
+          .replace(/\n/g, ' ')
+          .replace(/^\s+|\s+$/g, '')
+          .trim();
+        
+        console.log('[LETTER] ✅ Text content AFTER cleaning length:', textContent.length);
+        console.log('[LETTER] ✅ Full extracted text:', textContent);
+        console.log('[LETTER] ✅ First 300 chars:', textContent.substring(0, 300));
+        console.log('[LETTER] ✅ Last 300 chars:', textContent.substring(Math.max(0, textContent.length - 300)));
+        
+        safeLog('[LETTER] Extracted text length:', textContent.length);
+        safeLog('[LETTER] First 100 chars:', textContent.substring(0, 100));
+        
+        const allWords = textContent.split(/\s+/).filter(w => w.length > 0);
+        console.log('[LETTER] ✅ Total words extracted:', allWords.length);
+        console.log('[LETTER] ✅ First 20 words:', allWords.slice(0, 20));
+        console.log('[LETTER] ✅ Last 20 words:', allWords.slice(-20));
         
         const totalWords = allWords.length;
-        const maxWordsInColumn3 = 100;
+        const maxWordsInColumn1 = 130;
+        const maxWordsInColumn2 = 125;
+        const maxWordsInColumn3 = 120;
         
-        const wordsForColumns1And2 = totalWords - maxWordsInColumn3;
-        const wordsPerColumn1 = Math.floor(wordsForColumns1And2 / 2);
-        const wordsPerColumn2 = wordsForColumns1And2 - wordsPerColumn1;
-        const wordsPerColumn3 = Math.min(maxWordsInColumn3, totalWords - wordsPerColumn1 - wordsPerColumn2);
+        let wordsPerColumn1, wordsPerColumn2, wordsPerColumn3;
+        
+        if (totalWords <= maxWordsInColumn1) {
+          wordsPerColumn1 = totalWords;
+          wordsPerColumn2 = 0;
+          wordsPerColumn3 = 0;
+          console.log('[LETTER] Case 1: Short letter, all in column 1');
+        } else if (totalWords <= maxWordsInColumn1 + maxWordsInColumn2) {
+          wordsPerColumn1 = maxWordsInColumn1;
+          wordsPerColumn2 = totalWords - maxWordsInColumn1;
+          wordsPerColumn3 = 0;
+          console.log('[LETTER] Case 2: Medium letter, columns 1 and 2');
+        } else if (totalWords <= maxWordsInColumn1 + maxWordsInColumn2 + maxWordsInColumn3) {
+          wordsPerColumn1 = maxWordsInColumn1;
+          wordsPerColumn2 = maxWordsInColumn2;
+          wordsPerColumn3 = totalWords - maxWordsInColumn1 - maxWordsInColumn2;
+          console.log('[LETTER] Case 3: Long letter, all 3 columns');
+        } else {
+          wordsPerColumn1 = maxWordsInColumn1;
+          const remainingWords = totalWords - wordsPerColumn1;
+          wordsPerColumn2 = Math.min(maxWordsInColumn2, Math.floor(remainingWords / 2));
+          wordsPerColumn3 = Math.min(maxWordsInColumn3, remainingWords - wordsPerColumn2);
+          console.log('[LETTER] Case 4: Very long letter, distributed across 3 columns');
+        }
+        
+        console.log('[LETTER] Words per column:', wordsPerColumn1, wordsPerColumn2, wordsPerColumn3);
         
         const words1 = allWords.slice(0, wordsPerColumn1);
         const words2 = allWords.slice(wordsPerColumn1, wordsPerColumn1 + wordsPerColumn2);
-        const words3 = allWords.slice(wordsPerColumn1 + wordsPerColumn2);
+        const words3 = allWords.slice(wordsPerColumn1 + wordsPerColumn2, wordsPerColumn1 + wordsPerColumn2 + wordsPerColumn3);
+        
+        console.log('[LETTER] Column 1 words count:', words1.length);
+        console.log('[LETTER] Column 2 words count:', words2.length);
+        console.log('[LETTER] Column 3 words count:', words3.length);
         
         const part1 = words1.join(' ');
         const part2 = words2.join(' ');
         const part3 = words3.join(' ');
         
-        safeLog('[LETTER] Equal distribution:', wordsPerColumn1, wordsPerColumn2, words3.length, 'words per column, total:', totalWords);
+        console.log('[LETTER] ===== FINAL PARTS =====');
+        console.log('[LETTER] Part 1 length:', part1.length, 'chars, words:', words1.length);
+        console.log('[LETTER] Part 1 (first 200):', part1.substring(0, 200));
+        console.log('[LETTER] Part 1 (last 200):', part1.substring(Math.max(0, part1.length - 200)));
+        console.log('[LETTER] Part 1 FULL:', part1);
+        console.log('---');
+        console.log('[LETTER] Part 2 length:', part2.length, 'chars, words:', words2.length);
+        console.log('[LETTER] Part 2 (first 200):', part2.substring(0, 200));
+        console.log('[LETTER] Part 2 (last 200):', part2.substring(Math.max(0, part2.length - 200)));
+        console.log('[LETTER] Part 2 FULL:', part2);
+        console.log('---');
+        console.log('[LETTER] Part 3 length:', part3.length, 'chars, words:', words3.length);
+        console.log('[LETTER] Part 3 (first 200):', part3.substring(0, 200));
+        console.log('[LETTER] Part 3 (last 200):', part3.substring(Math.max(0, part3.length - 200)));
+        console.log('[LETTER] Part 3 FULL:', part3);
+        console.log('========================================');
+        
+        safeLog('[LETTER] Word distribution:', wordsPerColumn1, wordsPerColumn2, wordsPerColumn3, 'words per column, total:', totalWords);
+        safeLog('[LETTER] Part lengths (chars):', part1.length, part2.length, part3.length);
+        
+        if (letter.parasha) {
+          const titleElement = document.querySelector('.div-2 .div-wrapper .p');
+          if (titleElement) {
+            titleElement.textContent = `איגרת רבצ"ר - פרשת ${letter.parasha}`;
+            titleElement.setAttribute('dir', 'rtl');
+            safeLog('[LETTER] Updated title: איגרת רבצ"ר - פרשת', letter.parasha);
+          }
+        }
+        
+        if (letter.signature) {
+          const signatureElement = document.querySelector('.text-wrapper-6');
+          if (signatureElement) {
+            signatureElement.textContent = letter.signature;
+            signatureElement.setAttribute('dir', 'rtl');
+            safeLog('[LETTER] Updated signature');
+          }
+        }
         
         const element2 = document.querySelector('.text-wrapper-2');
         if (element2) {
           element2.setAttribute('dir', 'rtl');
-          element2.innerHTML = part1;
-          safeLog('[LETTER] Updated .text-wrapper-2');
+          element2.textContent = part1;
+          safeLog('[LETTER] Updated .text-wrapper-2 with', wordsPerColumn1, 'words');
         }
         
         const element3 = document.querySelector('.text-wrapper-3');
         if (element3) {
           element3.setAttribute('dir', 'rtl');
-          element3.innerHTML = part2;
-          safeLog('[LETTER] Updated .text-wrapper-3');
+          element3.textContent = part2;
+          safeLog('[LETTER] Updated .text-wrapper-3 with', wordsPerColumn2, 'words');
         }
         
         const element4 = document.querySelector('.text-wrapper-4');
         if (element4) {
           element4.setAttribute('dir', 'rtl');
-          element4.innerHTML = part3;
-          safeLog('[LETTER] Updated .text-wrapper-4');
+          element4.textContent = part3;
+          safeLog('[LETTER] Updated .text-wrapper-4 with', wordsPerColumn3, 'words');
         } else {
           safeWarn('[LETTER] Letter elements not found');
         }

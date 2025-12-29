@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
 
 const API_BASE = 'https://shchakim.rabaz.co.il';
 
@@ -102,16 +100,17 @@ export async function GET(req: Request) {
       return (id !== null && id !== undefined && id !== false && id !== '') ? id : null;
     })();
 
-    // טען את אגרת הרבצר מהקובץ המקומי (תמיד משתמש בטקסט החדש)
-    let rabbanutLetter = null;
-    try {
-      const letterPath = join(process.cwd(), 'data', 'rabbanut-letter.txt');
-      rabbanutLetter = await readFile(letterPath, 'utf-8');
-      console.log('[PROXY] Display-content: Loaded rabbanut letter from local file');
-    } catch (error) {
-      console.warn('[PROXY] Display-content: Could not load rabbanut letter file, using API letter:', error);
-      // Fallback ל-letter מה-API אם הקובץ לא קיים
-      rabbanutLetter = boardInfo.letter || externalContent?.letter || null;
+    const rabbanutLetter = boardInfo.letter || externalContent?.letter || null;
+    if (rabbanutLetter) {
+      if (typeof rabbanutLetter === 'object' && rabbanutLetter.html) {
+        console.log('[PROXY] Display-content: Loaded rabbanut letter object from API, title:', rabbanutLetter.title, 'parasha:', rabbanutLetter.parasha);
+      } else if (typeof rabbanutLetter === 'string') {
+        console.log('[PROXY] Display-content: Loaded rabbanut letter string from API, length:', rabbanutLetter.length);
+      } else {
+        console.log('[PROXY] Display-content: Loaded rabbanut letter from API (unknown type)');
+      }
+    } else {
+      console.log('[PROXY] Display-content: No rabbanut letter found in API response');
     }
 
     const payload = {

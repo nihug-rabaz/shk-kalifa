@@ -1009,19 +1009,6 @@
 
           if (response.ok) {
             const zmanimData = await response.json();
-            const parasha = zmanimData.parasha;
-            
-            if (parasha) {
-              const titleElement = document.querySelector('.div-2 .div-wrapper .p');
-              if (titleElement) {
-                titleElement.textContent = `אגרת רבצ"ר - פרשת ${parasha}`;
-                safeLog('[PARASHA] Updated parasha title to:', parasha);
-              } else {
-                safeWarn('[PARASHA] Title element not found');
-              }
-            } else {
-              safeWarn('[PARASHA] No parasha found in zmanim data');
-            }
           } else {
             safeWarn('[PARASHA] Failed to fetch zmanim, status:', response.status);
           }
@@ -1772,6 +1759,12 @@
       try {
         if (!data?.letter) {
           safeLog('[LETTER] No letter in data');
+          return;
+        }
+
+        const hasLetterContainer = document.querySelector('.div-wrapper');
+        if (!hasLetterContainer) {
+          safeLog('[LETTER] Letter display not available in this welcome screen');
           return;
         }
 
