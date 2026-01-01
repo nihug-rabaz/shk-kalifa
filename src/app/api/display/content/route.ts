@@ -100,17 +100,70 @@ export async function GET(req: Request) {
       return (id !== null && id !== undefined && id !== false && id !== '') ? id : null;
     })();
 
-    const rabbanutLetter = boardInfo.letter || externalContent?.letter || null;
-    if (rabbanutLetter) {
-      if (typeof rabbanutLetter === 'object' && rabbanutLetter.html) {
-        console.log('[PROXY] Display-content: Loaded rabbanut letter object from API, title:', rabbanutLetter.title, 'parasha:', rabbanutLetter.parasha);
-      } else if (typeof rabbanutLetter === 'string') {
-        console.log('[PROXY] Display-content: Loaded rabbanut letter string from API, length:', rabbanutLetter.length);
+    let rabbanutLetter = null;
+    try {
+      const requestUrl = new URL(req.url);
+      const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+      const checkClaimUrl = `${baseUrl}/api/check-claim-status?board_id=${encodeURIComponent(boardId)}`;
+      console.log('[PROXY] Display-content: Fetching letter from check-claim-status:', checkClaimUrl);
+      
+      const checkClaimResponse = await fetch(checkClaimUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store'
+      });
+      
+      console.log('[PROXY] Display-content: check-claim-status response status:', checkClaimResponse.status);
+      
+      if (checkClaimResponse.ok) {
+        const checkClaimData = await checkClaimResponse.json();
+        console.log('[PROXY] Display-content: check-claim-status data keys:', Object.keys(checkClaimData));
+        console.log('[PROXY] Display-content: check-claim-status has letter:', !!checkClaimData.letter);
+        console.log('[PROXY] Display-content: check-claim-status has html:', !!checkClaimData.html);
+        
+        if (checkClaimData.letter) {
+          rabbanutLetter = checkClaimData.letter;
+          console.log('[PROXY] Display-content: ✅ Loaded rabbanut letter from check-claim-status');
+          console.log('[PROXY] Display-content: Letter type:', typeof rabbanutLetter);
+          if (typeof rabbanutLetter === 'object') {
+            console.log('[PROXY] Display-content: Letter object keys:', Object.keys(rabbanutLetter));
+            console.log('[PROXY] Display-content: Letter title:', rabbanutLetter.title, 'parasha:', rabbanutLetter.parasha);
+          }
+        } else if (checkClaimData.html) {
+          rabbanutLetter = {
+            html: checkClaimData.html,
+            id: checkClaimData.letterId || null,
+            title: checkClaimData.letterTitle || null,
+            parasha: checkClaimData.parasha || null,
+            signature: checkClaimData.signature || null,
+            updatedAt: checkClaimData.letterUpdatedAt || null
+          };
+          console.log('[PROXY] Display-content: ✅ Created letter object from html field in check-claim-status');
+        } else {
+          console.log('[PROXY] Display-content: ⚠️ No letter or html in check-claim-status response');
+        }
       } else {
-        console.log('[PROXY] Display-content: Loaded rabbanut letter from API (unknown type)');
+        console.log('[PROXY] Display-content: ⚠️ check-claim-status response not OK:', checkClaimResponse.status);
       }
-    } else {
-      console.log('[PROXY] Display-content: No rabbanut letter found in API response');
+    } catch (error) {
+      console.error('[PROXY] Display-content: ❌ Error fetching letter from check-claim-status:', error);
+    }
+    
+    if (!rabbanutLetter) {
+      rabbanutLetter = boardInfo.letter || externalContent?.letter || null;
+      if (rabbanutLetter) {
+        if (typeof rabbanutLetter === 'object' && rabbanutLetter.html) {
+          console.log('[PROXY] Display-content: Loaded rabbanut letter object from fallback, title:', rabbanutLetter.title, 'parasha:', rabbanutLetter.parasha);
+        } else if (typeof rabbanutLetter === 'string') {
+          console.log('[PROXY] Display-content: Loaded rabbanut letter string from fallback, length:', rabbanutLetter.length);
+        } else {
+          console.log('[PROXY] Display-content: Loaded rabbanut letter from fallback (unknown type)');
+        }
+      } else {
+        console.log('[PROXY] Display-content: No rabbanut letter found in any source');
+      }
     }
 
     const payload = {
