@@ -1165,21 +1165,18 @@
         }
 
         if (yeshivaUpdates.length > 0) {
-          const safetySection = document.querySelector('section.safety-section');
-          if (safetySection) {
-            const yeshivaImage = safetySection.querySelector('img');
-            if (yeshivaImage) {
-              this.displayYeshivaImagesWithRotation(yeshivaUpdates, yeshivaImage);
-            }
+          const yeshivaImage = document.querySelector('.div-10 img.element-dadfb-ec-b');
+          if (yeshivaImage) {
+            console.log('[YESHIVA] Found yeshiva image element, displaying', yeshivaUpdates.length, 'updates');
+            this.displayYeshivaImagesWithRotation(yeshivaUpdates, yeshivaImage);
+          } else {
+            console.warn('[YESHIVA] Yeshiva image element not found (.div-10 img.element-dadfb-ec-b)');
           }
         } else {
-          const safetySection = document.querySelector('section.safety-section');
-          if (safetySection) {
-            const yeshivaImage = safetySection.querySelector('img');
-            if (yeshivaImage && this.yeshivaImageRotationInterval) {
-              clearTimeout(this.yeshivaImageRotationInterval);
-              this.yeshivaImageRotationInterval = null;
-            }
+          const yeshivaImage = document.querySelector('.div-10 img.element-dadfb-ec-b');
+          if (yeshivaImage && this.yeshivaImageRotationInterval) {
+            clearTimeout(this.yeshivaImageRotationInterval);
+            this.yeshivaImageRotationInterval = null;
           }
         }
 
@@ -1340,7 +1337,14 @@
 
     displayYeshivaImagesWithRotation(updates, imageElement) {
       try {
-        if (!updates || updates.length === 0 || !imageElement) return;
+        console.log('[YESHIVA-IMAGE] displayYeshivaImagesWithRotation called with', updates.length, 'updates');
+        console.log('[YESHIVA-IMAGE] Updates:', updates.map(u => ({ id: u.id, title: u.title, imageUrl: u.imageUrl })));
+        console.log('[YESHIVA-IMAGE] Image element:', imageElement);
+        
+        if (!updates || updates.length === 0 || !imageElement) {
+          console.warn('[YESHIVA-IMAGE] Missing updates or image element');
+          return;
+        }
 
         if (this.yeshivaImageRotationInterval) {
           clearTimeout(this.yeshivaImageRotationInterval);
@@ -1350,21 +1354,29 @@
         const currentUpdatesIds = updates.map(u => `${u.id || u.title}:${u.imageUrl || u.image || u.img || ''}`).join('|');
         const lastUpdatesIds = this.lastYeshivaUpdatesIds || '';
         
+        console.log('[YESHIVA-IMAGE] Current IDs:', currentUpdatesIds);
+        console.log('[YESHIVA-IMAGE] Last IDs:', lastUpdatesIds);
         safeLog('[YESHIVA-IMAGE] Current IDs:', currentUpdatesIds);
         safeLog('[YESHIVA-IMAGE] Last IDs:', lastUpdatesIds);
         
         if (currentUpdatesIds !== lastUpdatesIds) {
+          console.log('[YESHIVA-IMAGE] Updates changed, resetting rotation');
           safeLog('[YESHIVA-IMAGE] Updates changed, resetting rotation');
           this.lastYeshivaUpdatesIds = currentUpdatesIds;
           this.yeshivaImageIndex = 0;
           this.showCurrentYeshivaImage(updates, imageElement, true).then(() => {
             this.rotateToNextYeshivaImage(updates, imageElement);
-          }).catch(e => safeError('[YESHIVA] Error in displayYeshivaImagesWithRotation:', e));
+          }).catch(e => {
+            console.error('[YESHIVA] Error in displayYeshivaImagesWithRotation:', e);
+            safeError('[YESHIVA] Error in displayYeshivaImagesWithRotation:', e);
+          });
         } else {
+          console.log('[YESHIVA-IMAGE] Updates unchanged, forcing image update');
           safeLog('[YESHIVA-IMAGE] Updates unchanged, forcing image update');
           this.showCurrentYeshivaImage(updates, imageElement, true);
         }
       } catch (e) {
+        console.error('[YESHIVA] Error in displayYeshivaImagesWithRotation:', e);
         safeError('[YESHIVA] Error in displayYeshivaImagesWithRotation:', e);
       }
     }
@@ -1392,13 +1404,28 @@
 
     async showCurrentYeshivaImage(updates, imageElement, forceUpdate = false) {
       try {
-        if (updates.length === 0 || !imageElement) return;
+        console.log('[YESHIVA-IMAGE] showCurrentYeshivaImage called, index:', this.yeshivaImageIndex, 'updates:', updates.length);
+        
+        if (updates.length === 0 || !imageElement) {
+          console.warn('[YESHIVA-IMAGE] No updates or image element');
+          return;
+        }
 
         const currentUpdate = updates[this.yeshivaImageIndex];
-        if (!currentUpdate) return;
+        if (!currentUpdate) {
+          console.warn('[YESHIVA-IMAGE] No current update at index', this.yeshivaImageIndex);
+          return;
+        }
+
+        console.log('[YESHIVA-IMAGE] Current update:', currentUpdate);
 
         const imageUrl = currentUpdate.imageUrl || currentUpdate.image || currentUpdate.img;
-        if (!imageUrl) return;
+        if (!imageUrl) {
+          console.warn('[YESHIVA-IMAGE] No imageUrl in update:', currentUpdate);
+          return;
+        }
+        
+        console.log('[YESHIVA-IMAGE] Image URL:', imageUrl);
 
         const lockKey = `yeshiva_${imageUrl}`;
         if (this.imageLoadingLocks.has(lockKey) && !forceUpdate) {
