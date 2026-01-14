@@ -1,8 +1,11 @@
 (function() {
   'use strict';
 
+  const DEBUG_LOGS = false;
+
   function safeLog(...args) {
     try {
+      if (!DEBUG_LOGS) return;
       if (console && typeof console.log === 'function') {
         console.log(...args);
       }
@@ -12,6 +15,7 @@
 
   function safeWarn(...args) {
     try {
+      if (!DEBUG_LOGS) return;
       if (console && typeof console.warn === 'function') {
         console.warn(...args);
       }
@@ -280,6 +284,86 @@
       });
       this.objectUrls.clear();
     }
+
+    cleanupUnusedObjectUrls() {
+      const maxUrls = 50;
+      if (this.objectUrls.size > maxUrls) {
+        const urlsToRemove = Array.from(this.objectUrls.keys()).slice(0, this.objectUrls.size - maxUrls);
+        urlsToRemove.forEach(url => {
+          this.revokeObjectUrl(url);
+        });
+      }
+    }
+
+    async cleanupIndexedDB() {
+      try {
+        await this.init();
+        if (!this.db) return;
+        
+        const maxSize = 100 * 1024 * 1024;
+        const transaction = this.db.transaction([this.storeName], 'readonly');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.getAllKeys();
+        
+        return new Promise((resolve) => {
+          request.onsuccess = async () => {
+            try {
+              const keys = request.result;
+              if (keys.length === 0) {
+                resolve();
+                return;
+              }
+              
+              let totalSize = 0;
+              const entries = [];
+              
+              for (const key of keys) {
+                try {
+                  const getTransaction = this.db.transaction([this.storeName], 'readonly');
+                  const getStore = getTransaction.objectStore(this.storeName);
+                  const getRequest = getStore.get(key);
+                  
+                  await new Promise((getResolve) => {
+                    getRequest.onsuccess = () => {
+                      const blob = getRequest.result;
+                      const size = blob ? blob.size : 0;
+                      totalSize += size;
+                      entries.push({ key, size });
+                      getResolve();
+                    };
+                    getRequest.onerror = () => getResolve();
+                  });
+                } catch (e) {
+                  safeWarn('[IMAGECACHE] Error getting blob size for key:', key);
+                }
+              }
+              
+              if (totalSize > maxSize) {
+                entries.sort((a, b) => a.size - b.size);
+                const toRemove = Math.floor(entries.length * 0.3);
+                const deleteTransaction = this.db.transaction([this.storeName], 'readwrite');
+                const deleteStore = deleteTransaction.objectStore(this.storeName);
+                
+                for (let i = 0; i < toRemove; i++) {
+                  deleteStore.delete(entries[i].key);
+                }
+                safeLog('[IMAGECACHE] Cleaned up', toRemove, 'old images from IndexedDB');
+              }
+              resolve();
+            } catch (e) {
+              safeWarn('[IMAGECACHE] Error during cleanup:', e);
+              resolve();
+            }
+          };
+          request.onerror = () => {
+            safeWarn('[IMAGECACHE] Error getting keys for cleanup');
+            resolve();
+          };
+        });
+      } catch (e) {
+        safeWarn('[IMAGECACHE] Error in cleanupIndexedDB:', e);
+      }
+    }
   }
 
   class BoardDataLoader {
@@ -309,6 +393,9 @@
       this.eventListeners = [];
       this.lastLoadContentTime = 0;
       this.debounceDelay = 5000;
+      this.maxArraySize = 100;
+      this.cleanupInterval = null;
+      this.objectUrlCleanupInterval = null;
     }
 
     getBoardId() {
@@ -316,10 +403,26 @@
     }
 
     addTimeout(timeoutId) {
+      if (this.activeTimeouts.length >= this.maxArraySize) {
+        const oldest = this.activeTimeouts.shift();
+        try {
+          clearTimeout(oldest);
+        } catch (e) {
+          safeWarn('[LOADER] Error clearing oldest timeout:', e);
+        }
+      }
       this.activeTimeouts.push(timeoutId);
     }
 
     addInterval(intervalId) {
+      if (this.activeIntervals.length >= this.maxArraySize) {
+        const oldest = this.activeIntervals.shift();
+        try {
+          clearInterval(oldest);
+        } catch (e) {
+          safeWarn('[LOADER] Error clearing oldest interval:', e);
+        }
+      }
       this.activeIntervals.push(intervalId);
     }
 
@@ -356,9 +459,24 @@
       this.activeAbortControllers = [];
     }
 
+    cleanupOldAbortControllers() {
+      if (this.activeAbortControllers.length >= this.maxArraySize) {
+        const toRemove = this.activeAbortControllers.length - this.maxArraySize;
+        for (let i = 0; i < toRemove; i++) {
+          try {
+            this.activeAbortControllers[i].abort();
+          } catch (e) {
+            safeWarn('[LOADER] Error aborting old controller:', e);
+          }
+        }
+        this.activeAbortControllers = this.activeAbortControllers.slice(toRemove);
+      }
+    }
+
     async checkOnline() {
       if (!navigator.onLine) return false;
       try {
+        this.cleanupOldAbortControllers();
         const controller = new AbortController();
         this.activeAbortControllers.push(controller);
         const timeoutId = setTimeout(() => {
@@ -465,11 +583,11 @@
           const newLetterId = newData.letter.id;
           const letterChanged = existingLetterId !== newLetterId || 
                                JSON.stringify(existing.letter || {}) !== JSON.stringify(newData.letter);
-          if (letterChanged) {
-            merged.letter = { ...newData.letter };
-            hasChanges = true;
-            console.log('[MERGE] Letter updated:', newLetterId, 'Title:', newData.letter.title);
-          }
+        if (letterChanged) {
+          merged.letter = { ...newData.letter };
+          hasChanges = true;
+          safeLog('[MERGE] Letter updated:', newLetterId, 'Title:', newData.letter.title);
+        }
         }
         
         merged._hasChanges = hasChanges;
@@ -480,25 +598,74 @@
       }
     }
 
+    getTodayAndShabbatDates() {
+      const today = new Date();
+      const todayStr = today.toISOString().slice(0, 10);
+      
+      const dayOfWeek = today.getDay();
+      const daysUntilShabbat = dayOfWeek === 5 ? 0 : (5 - dayOfWeek + 7) % 7;
+      const shabbatDate = new Date(today);
+      shabbatDate.setDate(today.getDate() + daysUntilShabbat);
+      const shabbatStr = shabbatDate.toISOString().slice(0, 10);
+      
+      return { today: todayStr, shabbat: shabbatStr };
+    }
+
+    cleanupLocalStorage() {
+      try {
+        const { today, shabbat } = this.getTodayAndShabbatDates();
+        const keys = Object.keys(localStorage);
+        let cleaned = 0;
+        
+        keys.forEach(key => {
+          try {
+            if (key.startsWith('shchakim_content_') || key.startsWith('shchakim_content_timestamp_')) {
+              return;
+            }
+            
+            if (key.startsWith('zmanim_')) {
+              const dateMatch = key.match(/zmanim_[^_]+_[^_]+_(\d{4}-\d{2}-\d{2})/);
+              if (dateMatch) {
+                const dateStr = dateMatch[1];
+                if (dateStr !== today && dateStr !== shabbat) {
+                  localStorage.removeItem(key);
+                  cleaned++;
+                }
+              }
+            } else if (key.startsWith('halacha_')) {
+              const dateMatch = key.match(/halacha_(\d{4}-\d{2}-\d{2})/);
+              if (dateMatch) {
+                const dateStr = dateMatch[1];
+                if (dateStr !== today && dateStr !== shabbat) {
+                  localStorage.removeItem(key);
+                  cleaned++;
+                }
+              }
+            }
+          } catch (e) {
+            safeWarn('[LOADER] Error cleaning localStorage key:', key, e);
+          }
+        });
+        
+        if (cleaned > 0) {
+          safeLog('[LOADER] Cleaned', cleaned, 'old localStorage entries');
+        }
+      } catch (e) {
+        safeError('[LOADER] Error in cleanupLocalStorage:', e);
+      }
+    }
+
     safeSetLocalStorage(key, value) {
       try {
         localStorage.setItem(key, value);
       } catch (e) {
         if (e.name === 'QuotaExceededError' || e.code === 22) {
           safeWarn('[LOADER] LocalStorage quota exceeded, cleaning old cache');
+          this.cleanupLocalStorage();
           try {
-            const keys = Object.keys(localStorage);
-            const oldKeys = keys.filter(k => k.startsWith('shchakim_') || k.startsWith('zmanim_') || k.startsWith('halacha_'));
-            oldKeys.slice(0, Math.floor(oldKeys.length / 2)).forEach(k => {
-              try {
-                localStorage.removeItem(k);
-              } catch (err) {
-                safeWarn('[LOADER] Error removing old key:', err);
-              }
-            });
             localStorage.setItem(key, value);
           } catch (cleanupError) {
-            safeError('[LOADER] Failed to cleanup localStorage:', cleanupError);
+            safeError('[LOADER] Failed to save after cleanup:', cleanupError);
           }
         } else {
           safeWarn('[LOADER] LocalStorage error:', e);
@@ -560,6 +727,7 @@
         const isOnline = await this.checkOnline();
         if (isOnline) {
           try {
+            this.cleanupOldAbortControllers();
             const ts = Date.now();
             const controller = new AbortController();
             this.activeAbortControllers.push(controller);
@@ -579,12 +747,12 @@
             
             if (response.ok) {
               const newData = await response.json();
-              console.log('[LOAD] New data from API:', newData);
-              console.log('[LOAD] New letter from API:', newData.letter);
+              safeLog('[LOAD] New data from API:', newData);
+              safeLog('[LOAD] New letter from API:', newData.letter);
               
               const mergedData = this.mergeData(cachedData, newData);
               
-              console.log('[LOAD] Merged data letter:', mergedData.letter);
+              safeLog('[LOAD] Merged data letter:', mergedData.letter);
               
               const hasChanges = mergedData._hasChanges;
               delete mergedData._hasChanges;
@@ -594,13 +762,13 @@
               this.safeSetLocalStorage(contentTimestampKey, Date.now().toString());
               
               if (hasChanges) {
-                console.log('[LOAD] ✅ Data changed, updating display');
+                safeLog('[LOAD] ✅ Data changed, updating display');
                 safeLog('[ONLINE] Data changed, updating display');
                 await this.updateAll(mergedData);
               } else {
-                console.log('[LOAD] ⚠️ No changes detected, but forcing letter update if exists');
+                safeLog('[LOAD] ⚠️ No changes detected, but forcing letter update if exists');
                 if (mergedData.letter) {
-                  console.log('[LOAD] Forcing letter update even if no other changes');
+                  safeLog('[LOAD] Forcing letter update even if no other changes');
                   await this.updateLetter(mergedData);
                 } else {
                   safeLog('[ONLINE] No changes detected');
@@ -697,6 +865,7 @@
       const cacheKey = `zmanim_${location.latitude}_${location.longitude}_${new Date().toISOString().slice(0, 10)}`;
       
       try {
+        this.cleanupOldAbortControllers();
         const controller = new AbortController();
         this.activeAbortControllers.push(controller);
         const timeoutId = setTimeout(() => {
@@ -776,6 +945,7 @@
       try {
         const location = data?.boardInfo?.location;
         if (location && location.latitude && location.longitude) {
+          this.cleanupOldAbortControllers();
           const controller = new AbortController();
           this.activeAbortControllers.push(controller);
           const timeoutId = setTimeout(() => {
@@ -833,6 +1003,7 @@
       safeLog('[HALACHA] updateHalacha called');
       
       try {
+        this.cleanupOldAbortControllers();
         const controller = new AbortController();
         this.activeAbortControllers.push(controller);
         const timeoutId = setTimeout(() => {
@@ -883,8 +1054,6 @@
               } else {
                 safeWarn('[HALACHA] No combined text to display');
               }
-            } else {
-              safeError('[HALACHA] Container .div-wrapper-3 not found!');
             }
           } else {
             safeWarn('[HALACHA] No halacha items found for today');
@@ -1482,44 +1651,44 @@
 
     updateLetter(data) {
       try {
-        console.log('========================================');
-        console.log('[LETTER] ===== STARTING LETTER UPDATE =====');
-        console.log('[LETTER] Data received:', data);
+        safeLog('========================================');
+        safeLog('[LETTER] ===== STARTING LETTER UPDATE =====');
+        safeLog('[LETTER] Data received:', data);
         
         if (!data?.letter) {
-          console.error('[LETTER] ❌ No letter in data');
+          safeError('[LETTER] ❌ No letter in data');
           safeLog('[LETTER] No letter in data');
           return;
         }
 
         const letter = data.letter;
-        console.log('[LETTER] Letter object:', letter);
-        console.log('[LETTER] Letter type:', typeof letter);
-        console.log('[LETTER] Letter.html exists:', !!letter.html);
-        console.log('[LETTER] Letter.html type:', typeof letter.html);
+        safeLog('[LETTER] Letter object:', letter);
+        safeLog('[LETTER] Letter type:', typeof letter);
+        safeLog('[LETTER] Letter.html exists:', !!letter.html);
+        safeLog('[LETTER] Letter.html type:', typeof letter.html);
         
         const htmlContent = letter.html || letter;
         
         if (!htmlContent) {
-          console.error('[LETTER] ❌ No HTML content in letter');
+          safeError('[LETTER] ❌ No HTML content in letter');
           safeLog('[LETTER] No HTML content in letter');
           return;
         }
 
-        console.log('[LETTER] HTML content length:', htmlContent.length);
-        console.log('[LETTER] HTML content type:', typeof htmlContent);
-        console.log('[LETTER] HTML content first 200 chars:', htmlContent.substring(0, 200));
+        safeLog('[LETTER] HTML content length:', htmlContent.length);
+        safeLog('[LETTER] HTML content type:', typeof htmlContent);
+        safeLog('[LETTER] HTML content first 200 chars:', htmlContent.substring(0, 200));
         safeLog('[LETTER] Updating letter content, HTML length:', htmlContent.length);
         
         let textContent = '';
         
         if (typeof htmlContent === 'string') {
-          console.log('[LETTER] Parsing HTML string...');
+          safeLog('[LETTER] Parsing HTML string...');
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = htmlContent;
           
-          console.log('[LETTER] Temp div created, innerHTML length:', tempDiv.innerHTML.length);
-          console.log('[LETTER] Temp div textContent before walker:', tempDiv.textContent?.substring(0, 100));
+          safeLog('[LETTER] Temp div created, innerHTML length:', tempDiv.innerHTML.length);
+          safeLog('[LETTER] Temp div textContent before walker:', tempDiv.textContent?.substring(0, 100));
           
           const walker = document.createTreeWalker(
             tempDiv,
@@ -1539,18 +1708,18 @@
             }
           }
           
-          console.log('[LETTER] TreeWalker found', nodeCount, 'text nodes');
-          console.log('[LETTER] Text nodes array length:', textNodes.length);
-          console.log('[LETTER] First 5 text nodes:', textNodes.slice(0, 5));
+          safeLog('[LETTER] TreeWalker found', nodeCount, 'text nodes');
+          safeLog('[LETTER] Text nodes array length:', textNodes.length);
+          safeLog('[LETTER] First 5 text nodes:', textNodes.slice(0, 5));
           
           textContent = textNodes.join(' ');
-          console.log('[LETTER] Joined text content length:', textContent.length);
+          safeLog('[LETTER] Joined text content length:', textContent.length);
         } else {
-          console.log('[LETTER] HTML content is not a string, converting...');
+          safeLog('[LETTER] HTML content is not a string, converting...');
           textContent = String(htmlContent);
         }
         
-        console.log('[LETTER] Text content BEFORE cleaning:', textContent.substring(0, 200));
+        safeLog('[LETTER] Text content BEFORE cleaning:', textContent.substring(0, 200));
         
         textContent = textContent
           .replace(/&nbsp;/gi, ' ')
@@ -1567,22 +1736,22 @@
           .replace(/^\s+|\s+$/g, '')
           .trim();
         
-        console.log('[LETTER] ✅ Text content AFTER cleaning length:', textContent.length);
-        console.log('[LETTER] ✅ Full extracted text:', textContent);
-        console.log('[LETTER] ✅ First 300 chars:', textContent.substring(0, 300));
-        console.log('[LETTER] ✅ Last 300 chars:', textContent.substring(Math.max(0, textContent.length - 300)));
+        safeLog('[LETTER] ✅ Text content AFTER cleaning length:', textContent.length);
+        safeLog('[LETTER] ✅ Full extracted text:', textContent);
+        safeLog('[LETTER] ✅ First 300 chars:', textContent.substring(0, 300));
+        safeLog('[LETTER] ✅ Last 300 chars:', textContent.substring(Math.max(0, textContent.length - 300)));
         
         safeLog('[LETTER] Extracted text length:', textContent.length);
         safeLog('[LETTER] First 100 chars:', textContent.substring(0, 100));
         
         const allWords = textContent.split(/\s+/).filter(w => w.length > 0);
-        console.log('[LETTER] ✅ Total words extracted:', allWords.length);
-        console.log('[LETTER] ✅ First 20 words:', allWords.slice(0, 20));
-        console.log('[LETTER] ✅ Last 20 words:', allWords.slice(-20));
+        safeLog('[LETTER] ✅ Total words extracted:', allWords.length);
+        safeLog('[LETTER] ✅ First 20 words:', allWords.slice(0, 20));
+        safeLog('[LETTER] ✅ Last 20 words:', allWords.slice(-20));
         
         const totalWords = allWords.length;
-        const maxWordsInColumn1 = 130;
-        const maxWordsInColumn2 = 125;
+        const maxWordsInColumn1 = 140;
+        const maxWordsInColumn2 = 130;
         const maxWordsInColumn3 = 120;
         
         let wordsPerColumn1, wordsPerColumn2, wordsPerColumn3;
@@ -1591,55 +1760,55 @@
           wordsPerColumn1 = totalWords;
           wordsPerColumn2 = 0;
           wordsPerColumn3 = 0;
-          console.log('[LETTER] Case 1: Short letter, all in column 1');
+          safeLog('[LETTER] Case 1: Short letter, all in column 1');
         } else if (totalWords <= maxWordsInColumn1 + maxWordsInColumn2) {
           wordsPerColumn1 = maxWordsInColumn1;
           wordsPerColumn2 = totalWords - maxWordsInColumn1;
           wordsPerColumn3 = 0;
-          console.log('[LETTER] Case 2: Medium letter, columns 1 and 2');
+          safeLog('[LETTER] Case 2: Medium letter, columns 1 and 2');
         } else if (totalWords <= maxWordsInColumn1 + maxWordsInColumn2 + maxWordsInColumn3) {
           wordsPerColumn1 = maxWordsInColumn1;
           wordsPerColumn2 = maxWordsInColumn2;
           wordsPerColumn3 = totalWords - maxWordsInColumn1 - maxWordsInColumn2;
-          console.log('[LETTER] Case 3: Long letter, all 3 columns');
+          safeLog('[LETTER] Case 3: Long letter, all 3 columns');
         } else {
           wordsPerColumn1 = maxWordsInColumn1;
           const remainingWords = totalWords - wordsPerColumn1;
           wordsPerColumn2 = Math.min(maxWordsInColumn2, Math.floor(remainingWords / 2));
           wordsPerColumn3 = Math.min(maxWordsInColumn3, remainingWords - wordsPerColumn2);
-          console.log('[LETTER] Case 4: Very long letter, distributed across 3 columns');
+          safeLog('[LETTER] Case 4: Very long letter, distributed across 3 columns');
         }
         
-        console.log('[LETTER] Words per column:', wordsPerColumn1, wordsPerColumn2, wordsPerColumn3);
+        safeLog('[LETTER] Words per column:', wordsPerColumn1, wordsPerColumn2, wordsPerColumn3);
         
         const words1 = allWords.slice(0, wordsPerColumn1);
         const words2 = allWords.slice(wordsPerColumn1, wordsPerColumn1 + wordsPerColumn2);
         const words3 = allWords.slice(wordsPerColumn1 + wordsPerColumn2, wordsPerColumn1 + wordsPerColumn2 + wordsPerColumn3);
         
-        console.log('[LETTER] Column 1 words count:', words1.length);
-        console.log('[LETTER] Column 2 words count:', words2.length);
-        console.log('[LETTER] Column 3 words count:', words3.length);
+        safeLog('[LETTER] Column 1 words count:', words1.length);
+        safeLog('[LETTER] Column 2 words count:', words2.length);
+        safeLog('[LETTER] Column 3 words count:', words3.length);
         
         const part1 = words1.join(' ');
         const part2 = words2.join(' ');
         const part3 = words3.join(' ');
         
-        console.log('[LETTER] ===== FINAL PARTS =====');
-        console.log('[LETTER] Part 1 length:', part1.length, 'chars, words:', words1.length);
-        console.log('[LETTER] Part 1 (first 200):', part1.substring(0, 200));
-        console.log('[LETTER] Part 1 (last 200):', part1.substring(Math.max(0, part1.length - 200)));
-        console.log('[LETTER] Part 1 FULL:', part1);
-        console.log('---');
-        console.log('[LETTER] Part 2 length:', part2.length, 'chars, words:', words2.length);
-        console.log('[LETTER] Part 2 (first 200):', part2.substring(0, 200));
-        console.log('[LETTER] Part 2 (last 200):', part2.substring(Math.max(0, part2.length - 200)));
-        console.log('[LETTER] Part 2 FULL:', part2);
-        console.log('---');
-        console.log('[LETTER] Part 3 length:', part3.length, 'chars, words:', words3.length);
-        console.log('[LETTER] Part 3 (first 200):', part3.substring(0, 200));
-        console.log('[LETTER] Part 3 (last 200):', part3.substring(Math.max(0, part3.length - 200)));
-        console.log('[LETTER] Part 3 FULL:', part3);
-        console.log('========================================');
+        safeLog('[LETTER] ===== FINAL PARTS =====');
+        safeLog('[LETTER] Part 1 length:', part1.length, 'chars, words:', words1.length);
+        safeLog('[LETTER] Part 1 (first 200):', part1.substring(0, 200));
+        safeLog('[LETTER] Part 1 (last 200):', part1.substring(Math.max(0, part1.length - 200)));
+        safeLog('[LETTER] Part 1 FULL:', part1);
+        safeLog('---');
+        safeLog('[LETTER] Part 2 length:', part2.length, 'chars, words:', words2.length);
+        safeLog('[LETTER] Part 2 (first 200):', part2.substring(0, 200));
+        safeLog('[LETTER] Part 2 (last 200):', part2.substring(Math.max(0, part2.length - 200)));
+        safeLog('[LETTER] Part 2 FULL:', part2);
+        safeLog('---');
+        safeLog('[LETTER] Part 3 length:', part3.length, 'chars, words:', words3.length);
+        safeLog('[LETTER] Part 3 (first 200):', part3.substring(0, 200));
+        safeLog('[LETTER] Part 3 (last 200):', part3.substring(Math.max(0, part3.length - 200)));
+        safeLog('[LETTER] Part 3 FULL:', part3);
+        safeLog('========================================');
         
         safeLog('[LETTER] Word distribution:', wordsPerColumn1, wordsPerColumn2, wordsPerColumn3, 'words per column, total:', totalWords);
         safeLog('[LETTER] Part lengths (chars):', part1.length, part2.length, part3.length);
@@ -1809,6 +1978,49 @@
       }
     }
 
+    setupPeriodicCleanup() {
+      try {
+        if (this.cleanupInterval) {
+          clearInterval(this.cleanupInterval);
+        }
+        const intervalId = setInterval(async () => {
+          try {
+            safeLog('[CLEANUP] Starting periodic cleanup');
+            this.cleanupLocalStorage();
+            this.imageCache.cleanupUnusedObjectUrls();
+            await this.imageCache.cleanupIndexedDB();
+            this.cleanupOldAbortControllers();
+            safeLog('[CLEANUP] Periodic cleanup completed');
+          } catch (e) {
+            safeError('[CLEANUP] Error in periodic cleanup:', e);
+          }
+        }, 30 * 60 * 1000);
+        this.addInterval(intervalId);
+        this.cleanupInterval = intervalId;
+      } catch (e) {
+        safeError('[CLEANUP] Error setting up periodic cleanup:', e);
+      }
+    }
+
+    setupObjectUrlCleanup() {
+      try {
+        if (this.objectUrlCleanupInterval) {
+          clearInterval(this.objectUrlCleanupInterval);
+        }
+        const intervalId = setInterval(() => {
+          try {
+            this.imageCache.cleanupUnusedObjectUrls();
+          } catch (e) {
+            safeWarn('[CLEANUP] Error in object URL cleanup:', e);
+          }
+        }, 10 * 60 * 1000);
+        this.addInterval(intervalId);
+        this.objectUrlCleanupInterval = intervalId;
+      } catch (e) {
+        safeError('[CLEANUP] Error setting up object URL cleanup:', e);
+      }
+    }
+
     setupOnlineOfflineListeners() {
       try {
         const onlineHandler = async () => {
@@ -1870,9 +2082,12 @@
       try {
         safeLog('[LOADER] BoardDataLoader.start() called');
         this.setupVisibilityListener();
+        this.cleanupLocalStorage();
         this.loadContent();
         this.setupPeriodicUpdates();
         this.setupOnlineOfflineListeners();
+        this.setupPeriodicCleanup();
+        this.setupObjectUrlCleanup();
       } catch (e) {
         safeError('[LOADER] Error in start:', e);
       }
@@ -1910,6 +2125,15 @@
         if (this.safetyRotationInterval) {
           clearTimeout(this.safetyRotationInterval);
           this.safetyRotationInterval = null;
+        }
+
+        if (this.cleanupInterval) {
+          clearInterval(this.cleanupInterval);
+          this.cleanupInterval = null;
+        }
+        if (this.objectUrlCleanupInterval) {
+          clearInterval(this.objectUrlCleanupInterval);
+          this.objectUrlCleanupInterval = null;
         }
 
         this.eventListeners.forEach(({ type, handler, target = window }) => {

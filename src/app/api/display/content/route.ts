@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { AppLogger } from '@/utils/AppLogger';
 
 const API_BASE = 'https://shchakim.rabaz.co.il';
 
@@ -11,9 +12,8 @@ export async function GET(req: Request) {
   }
 
   try {
-    // נסה קודם /api/board-info
     const boardInfoUrl = `${API_BASE}/api/board-info?id=${encodeURIComponent(boardId)}`;
-    console.log(`[PROXY] Display-content: proxying to ${boardInfoUrl}`);
+    AppLogger.info('[PROXY] Display-content: proxying to board-info', { boardId, boardInfoUrl });
 
     const boardInfoResponse = await fetch(boardInfoUrl, {
       method: 'GET',
@@ -26,17 +26,24 @@ export async function GET(req: Request) {
     let boardInfo: any = null;
     if (boardInfoResponse.ok) {
       boardInfo = await boardInfoResponse.json();
-      console.log(`[PROXY] Display-content: received board info for ${boardId}`);
-      console.log(`[PROXY] Display-content: boardInfo.unit_logo:`, boardInfo.unit_logo);
-      console.log(`[PROXY] Display-content: boardInfo.synagogue_id:`, (boardInfo as any).synagogue_id, 'Type:', typeof (boardInfo as any).synagogue_id);
-      console.log(`[PROXY] Display-content: boardInfo.synagogueId:`, (boardInfo as any).synagogueId, 'Type:', typeof (boardInfo as any).synagogueId);
+      AppLogger.info('[PROXY] Display-content: received board info', {
+        boardId,
+        unit_logo: boardInfo.unit_logo,
+        synagogue_id: (boardInfo as any).synagogue_id,
+        synagogueId: (boardInfo as any).synagogueId
+      });
     } else {
-      console.log(`[PROXY] Display-content: board-info error status ${boardInfoResponse.status}, will try to use externalContent`);
+      AppLogger.warn('[PROXY] Display-content: board-info error, will try externalContent', {
+        boardId,
+        status: boardInfoResponse.status
+      });
     }
 
-    // נסה /api/display/content כ-fallback
     const displayContentUrl = `${API_BASE}/api/display/content?boardId=${encodeURIComponent(boardId)}`;
-    console.log(`[PROXY] Display-content: trying fallback ${displayContentUrl}`);
+    AppLogger.info('[PROXY] Display-content: trying display/content fallback', {
+      boardId,
+      displayContentUrl
+    });
 
     const displayContentResponse = await fetch(displayContentUrl, {
       method: 'GET',
@@ -49,10 +56,11 @@ export async function GET(req: Request) {
     let externalContent = null;
     if (displayContentResponse.ok) {
       externalContent = await displayContentResponse.json();
-      console.log(`[PROXY] Display-content: received external display content for ${boardId}`);
-      console.log(`[PROXY] Display-content: externalContent.boardInfo?.synagogue_id:`, externalContent?.boardInfo?.synagogue_id, 'Type:', typeof externalContent?.boardInfo?.synagogue_id);
-      console.log(`[PROXY] Display-content: externalContent.boardInfo?.synagogueId:`, externalContent?.boardInfo?.synagogueId, 'Type:', typeof externalContent?.boardInfo?.synagogueId);
-      console.log(`[PROXY] Display-content: externalContent.fab:`, externalContent?.fab);
+      AppLogger.info('[PROXY] Display-content: received external display content', {
+        boardId,
+        hasBoardInfo: !!externalContent?.boardInfo,
+        hasFab: !!externalContent?.fab
+      });
 
       // אם board-info נכשל, נשתמש ב-externalContent
       if (!boardInfo && externalContent?.boardInfo) {
@@ -64,10 +72,13 @@ export async function GET(req: Request) {
           theme: externalContent.theme || externalContent.boardInfo?.theme,
           ...externalContent.boardInfo
         };
-        console.log(`[PROXY] Display-content: Using boardInfo from externalContent`);
+        AppLogger.info('[PROXY] Display-content: Using boardInfo from externalContent', { boardId });
       }
     } else {
-      console.log(`[PROXY] Display-content: display-content error status ${displayContentResponse.status}`);
+      AppLogger.warn('[PROXY] Display-content: display-content error status', {
+        boardId,
+        status: displayContentResponse.status
+      });
     }
 
     // אם גם board-info וגם display-content נכשלו
@@ -90,13 +101,15 @@ export async function GET(req: Request) {
       ? boardInfo.theme.gradient
       : [themePrimary, '#145a43'];
 
-    // קח synagogue_id גם מ-externalContent
     const synagogueId = (() => {
       const id = externalContent?.boardInfo?.synagogue_id ||
                  externalContent?.boardInfo?.synagogueId ||
                  (boardInfo as any).synagogue_id ||
                  (boardInfo as any).synagogueId;
-      console.log(`[PROXY] Display-content: Setting synagogueId in payload:`, id, 'Type:', typeof id);
+      AppLogger.info('[PROXY] Display-content: Setting synagogueId in payload', {
+        boardId,
+        synagogueId: id
+      });
       return (id !== null && id !== undefined && id !== false && id !== '') ? id : null;
     })();
 
@@ -105,7 +118,10 @@ export async function GET(req: Request) {
       const requestUrl = new URL(req.url);
       const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
       const checkClaimUrl = `${baseUrl}/api/check-claim-status?board_id=${encodeURIComponent(boardId)}`;
-      console.log('[PROXY] Display-content: Fetching letter from check-claim-status:', checkClaimUrl);
+      AppLogger.info('[PROXY] Display-content: Fetching letter from check-claim-status', {
+        boardId,
+        checkClaimUrl
+      });
       
       const checkClaimResponse = await fetch(checkClaimUrl, {
         method: 'GET',
@@ -115,7 +131,10 @@ export async function GET(req: Request) {
         cache: 'no-store'
       });
       
-      console.log('[PROXY] Display-content: check-claim-status response status:', checkClaimResponse.status);
+      AppLogger.info('[PROXY] Display-content: check-claim-status response status', {
+        boardId,
+        status: checkClaimResponse.status
+      });
       
       if (checkClaimResponse.ok) {
         const checkClaimData = await checkClaimResponse.json();
@@ -125,12 +144,10 @@ export async function GET(req: Request) {
         
         if (checkClaimData.letter) {
           rabbanutLetter = checkClaimData.letter;
-          console.log('[PROXY] Display-content: ✅ Loaded rabbanut letter from check-claim-status');
-          console.log('[PROXY] Display-content: Letter type:', typeof rabbanutLetter);
-          if (typeof rabbanutLetter === 'object') {
-            console.log('[PROXY] Display-content: Letter object keys:', Object.keys(rabbanutLetter));
-            console.log('[PROXY] Display-content: Letter title:', rabbanutLetter.title, 'parasha:', rabbanutLetter.parasha);
-          }
+          AppLogger.info('[PROXY] Display-content: Loaded rabbanut letter from check-claim-status', {
+            boardId,
+            type: typeof rabbanutLetter
+          });
         } else if (checkClaimData.html) {
           rabbanutLetter = {
             html: checkClaimData.html,
@@ -140,29 +157,50 @@ export async function GET(req: Request) {
             signature: checkClaimData.signature || null,
             updatedAt: checkClaimData.letterUpdatedAt || null
           };
-          console.log('[PROXY] Display-content: ✅ Created letter object from html field in check-claim-status');
+          AppLogger.info('[PROXY] Display-content: Created letter object from html field in check-claim-status', {
+            boardId
+          });
         } else {
-          console.log('[PROXY] Display-content: ⚠️ No letter or html in check-claim-status response');
+          AppLogger.warn('[PROXY] Display-content: No letter or html in check-claim-status response', {
+            boardId
+          });
         }
       } else {
-        console.log('[PROXY] Display-content: ⚠️ check-claim-status response not OK:', checkClaimResponse.status);
+        AppLogger.warn('[PROXY] Display-content: check-claim-status response not OK', {
+          boardId,
+          status: checkClaimResponse.status
+        });
       }
     } catch (error) {
-      console.error('[PROXY] Display-content: ❌ Error fetching letter from check-claim-status:', error);
+      AppLogger.error('[PROXY] Display-content: Error fetching letter from check-claim-status', {
+        boardId,
+        error
+      });
     }
     
     if (!rabbanutLetter) {
       rabbanutLetter = boardInfo.letter || externalContent?.letter || null;
       if (rabbanutLetter) {
         if (typeof rabbanutLetter === 'object' && rabbanutLetter.html) {
-          console.log('[PROXY] Display-content: Loaded rabbanut letter object from fallback, title:', rabbanutLetter.title, 'parasha:', rabbanutLetter.parasha);
+          AppLogger.info('[PROXY] Display-content: Loaded rabbanut letter object from fallback', {
+            boardId,
+            title: rabbanutLetter.title,
+            parasha: rabbanutLetter.parasha
+          });
         } else if (typeof rabbanutLetter === 'string') {
-          console.log('[PROXY] Display-content: Loaded rabbanut letter string from fallback, length:', rabbanutLetter.length);
+          AppLogger.info('[PROXY] Display-content: Loaded rabbanut letter string from fallback', {
+            boardId,
+            length: rabbanutLetter.length
+          });
         } else {
-          console.log('[PROXY] Display-content: Loaded rabbanut letter from fallback (unknown type)');
+          AppLogger.info('[PROXY] Display-content: Loaded rabbanut letter from fallback (unknown type)', {
+            boardId
+          });
         }
       } else {
-        console.log('[PROXY] Display-content: No rabbanut letter found in any source');
+        AppLogger.info('[PROXY] Display-content: No rabbanut letter found in any source', {
+          boardId
+        });
       }
     }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { AppLogger } from '@/utils/AppLogger';
 
 const API_BASE_URL = 'https://shchakim.rabaz.co.il/api';
 
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Board data API error:', error);
+    AppLogger.error('Board data API error', { error });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

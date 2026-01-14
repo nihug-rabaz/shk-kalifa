@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { AppLogger } from '@/utils/AppLogger';
 
 const API_BASE_URL = 'https://shchakim.rabaz.co.il/api';
 
@@ -26,17 +27,18 @@ export async function GET(request: NextRequest) {
 
     if (boardInfoResponse.ok) {
       const responseData: any = { ...boardInfoData };
-      console.log('[CHECK-CLAIM] board-info response OK, checking for letter...');
-      console.log('[CHECK-CLAIM] boardInfoData.letter exists:', !!boardInfoData.letter);
-      console.log('[CHECK-CLAIM] boardInfoData.html exists:', !!boardInfoData.html);
+      AppLogger.info('[CHECK-CLAIM] board-info response OK, checking for letter', {
+        board_id,
+        hasLetter: !!boardInfoData.letter,
+        hasHtml: !!boardInfoData.html
+      });
       
       if (boardInfoData.letter) {
         responseData.letter = boardInfoData.letter;
-        console.log('[CHECK-CLAIM] ✅ Added letter to response, type:', typeof boardInfoData.letter);
-        if (typeof boardInfoData.letter === 'object') {
-          console.log('[CHECK-CLAIM] Letter object keys:', Object.keys(boardInfoData.letter));
-          console.log('[CHECK-CLAIM] Letter title:', boardInfoData.letter.title, 'parasha:', boardInfoData.letter.parasha);
-        }
+        AppLogger.info('[CHECK-CLAIM] Added letter to response', {
+          board_id,
+          type: typeof boardInfoData.letter
+        });
       } else if (boardInfoData.html) {
         responseData.letter = {
           html: boardInfoData.html,
@@ -46,17 +48,20 @@ export async function GET(request: NextRequest) {
           signature: boardInfoData.signature || null,
           updatedAt: boardInfoData.letterUpdatedAt || null
         };
-        console.log('[CHECK-CLAIM] ✅ Created letter object from html field');
+        AppLogger.info('[CHECK-CLAIM] Created letter object from html field', { board_id });
       }
       if (boardInfoData.html && !boardInfoData.letter) {
         responseData.html = boardInfoData.html;
-        console.log('[CHECK-CLAIM] ✅ Added html to response');
+        AppLogger.info('[CHECK-CLAIM] Added html to response', { board_id });
       }
       return NextResponse.json(responseData);
     }
 
     // אם board-info נכשל, נסה /api/display/content כ-fallback
-    console.log(`[CHECK-CLAIM] board-info failed (${boardInfoResponse.status}), trying display/content as fallback`);
+    AppLogger.warn('[CHECK-CLAIM] board-info failed, trying display/content as fallback', {
+      board_id,
+      status: boardInfoResponse.status
+    });
     
     const displayContentResponse = await fetch(`${API_BASE_URL}/display/content?boardId=${board_id}`, {
       method: 'GET',
@@ -70,7 +75,9 @@ export async function GET(request: NextRequest) {
       
       // אם יש boardInfo ב-display/content, הלוח משויך
       if (displayContentData?.boardInfo) {
-        console.log(`[CHECK-CLAIM] Using display/content as fallback - board is linked`);
+        AppLogger.info('[CHECK-CLAIM] Using display/content as fallback - board is linked', {
+          board_id
+        });
         const responseData: any = {
           linked: true,
           logical_board_id: displayContentData.boardInfo.logical_board_id || 1,
@@ -94,7 +101,7 @@ export async function GET(request: NextRequest) {
     }
 
     // אם גם display/content נכשל או לא החזיר boardInfo, הלוח לא משויך
-    console.log(`[CHECK-CLAIM] Both APIs failed, returning linked: false`);
+    AppLogger.warn('[CHECK-CLAIM] Both APIs failed, returning linked: false', { board_id });
     return NextResponse.json(
       {
         linked: false,
@@ -104,7 +111,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Check claim status API error:', error);
+    AppLogger.error('Check claim status API error', { error });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

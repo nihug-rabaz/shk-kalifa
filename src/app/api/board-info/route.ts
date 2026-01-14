@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { AppLogger } from '@/utils/AppLogger';
 
 type BoardInfo = {
   linked: boolean;
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
   }
 
   const targetUrl = `${API_BASE}/api/board-info?id=${encodeURIComponent(boardId)}`;
-  console.log(`[PROXY] Board-info GET: proxying request to ${targetUrl}`);
+  AppLogger.info('[PROXY] Board-info GET: proxying request', { boardId, targetUrl });
 
   try {
     const response = await fetch(targetUrl, {
@@ -47,11 +48,18 @@ export async function GET(req: Request) {
       cache: 'no-store'
     });
 
-    console.log(`[PROXY] Board-info GET: response status ${response.status} for board ${boardId}`);
+    AppLogger.info('[PROXY] Board-info GET: response received', {
+      boardId,
+      status: response.status
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.log(`[PROXY] Board-info GET: error response: ${errorText}`);
+      AppLogger.warn('[PROXY] Board-info GET: error response', {
+        boardId,
+        status: response.status,
+        error: errorText
+      });
       return NextResponse.json({ linked: false }, {
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
@@ -61,7 +69,11 @@ export async function GET(req: Request) {
     }
 
     const data: BoardInfo = await response.json();
-    console.log(`[PROXY] Board-info GET: success response:`, JSON.stringify(data));
+    AppLogger.info('[PROXY] Board-info GET: success response', {
+      boardId,
+      hasPrayers: !!data.prayers,
+      hasUpdates: !!data.updates
+    });
     return NextResponse.json(data, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
@@ -69,7 +81,10 @@ export async function GET(req: Request) {
       }
     });
   } catch (error) {
-    console.error(`[PROXY] Board-info GET: error proxying request for board ${boardId}:`, error);
+    AppLogger.error('[PROXY] Board-info GET: error proxying request', {
+      boardId,
+      error
+    });
     return NextResponse.json({ linked: false }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
@@ -87,7 +102,10 @@ export async function POST(req: Request) {
   }
 
   const targetUrl = `${API_BASE}/api/board-info`;
-  console.log(`[PROXY] Board-info POST: proxying request to ${targetUrl}`, JSON.stringify(body));
+  AppLogger.info('[PROXY] Board-info POST: proxying request', {
+    targetUrl,
+    body
+  });
 
   try {
     const response = await fetch(targetUrl, {
@@ -99,19 +117,28 @@ export async function POST(req: Request) {
       cache: 'no-store'
     });
 
-    console.log(`[PROXY] Board-info POST: response status ${response.status}`);
+    AppLogger.info('[PROXY] Board-info POST: response received', {
+      status: response.status
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to claim board' }));
-      console.log(`[PROXY] Board-info POST: error response:`, JSON.stringify(errorData));
+      AppLogger.warn('[PROXY] Board-info POST: error response', {
+        status: response.status,
+        error: errorData
+      });
       return NextResponse.json(errorData, { status: response.status });
     }
 
     const data = await response.json();
-    console.log(`[PROXY] Board-info POST: success response:`, JSON.stringify(data));
+    AppLogger.info('[PROXY] Board-info POST: success response', {
+      status: response.status
+    });
     return NextResponse.json(data);
   } catch (error) {
-    console.error(`[PROXY] Board-info POST: error proxying request:`, error);
+    AppLogger.error('[PROXY] Board-info POST: error proxying request', {
+      error
+    });
     return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
   }
 }

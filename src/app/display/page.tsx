@@ -104,7 +104,6 @@ export default function DisplayPage() {
         
         const totalTime = event.data.totalTime || 60000;
         boardTimesRef.current[boardNum] = totalTime;
-        console.log(`[DISPLAY] Board ${boardNum} display time updated: ${totalTime}ms`);
       }
     };
 
@@ -125,11 +124,7 @@ export default function DisplayPage() {
       
       const currentTime = boardTimesRef.current[currentBoard] || 60000;
       switchTimeoutRef.current = setTimeout(() => {
-        setCurrentBoard(prev => {
-          const nextBoard = prev === 1 ? 2 : 1;
-          console.log(`[DISPLAY] Switching to board ${nextBoard}`);
-          return nextBoard;
-        });
+        setCurrentBoard(prev => (prev === 1 ? 2 : 1));
       }, currentTime);
     };
     

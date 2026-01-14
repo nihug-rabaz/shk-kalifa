@@ -56,7 +56,6 @@ export default function ClaimPage() {
             const response = await fetch(`/api/check-claim-status?board_id=${currentBoardId}`);
             if (response.ok) {
               const data = await response.json();
-              console.log('Board status check:', data);
               
               const isLinked = data.linked === true || data.linked === 'true' || (data.logical_board_id && data.logical_board_id > 0);
               

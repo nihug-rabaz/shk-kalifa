@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { AppLogger } from '@/utils/AppLogger';
 
 const API_BASE = 'https://shchakim.rabaz.co.il';
 
@@ -10,7 +11,7 @@ export async function POST(req: Request) {
   }
 
   const targetUrl = `${API_BASE}/api/claim`;
-  console.log(`[PROXY] Claim POST: proxying request to ${targetUrl}`, JSON.stringify(body));
+  AppLogger.info('[PROXY] Claim POST: proxying request', { targetUrl, body });
 
   try {
     const response = await fetch(targetUrl, {
@@ -22,19 +23,22 @@ export async function POST(req: Request) {
       cache: 'no-store'
     });
 
-    console.log(`[PROXY] Claim POST: response status ${response.status}`);
+    AppLogger.info('[PROXY] Claim POST: response received', { status: response.status });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to claim board' }));
-      console.log(`[PROXY] Claim POST: error response:`, JSON.stringify(errorData));
+      AppLogger.warn('[PROXY] Claim POST: error response', {
+        status: response.status,
+        error: errorData
+      });
       return NextResponse.json(errorData, { status: response.status });
     }
 
     const data = await response.json();
-    console.log(`[PROXY] Claim POST: success response:`, JSON.stringify(data));
+    AppLogger.info('[PROXY] Claim POST: success response', { status: response.status });
     return NextResponse.json(data);
   } catch (error) {
-    console.error(`[PROXY] Claim POST: error proxying request:`, error);
+    AppLogger.error('[PROXY] Claim POST: error proxying request', { error });
     return NextResponse.json({ error: 'Failed to process claim request' }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { parse } from 'csv-parse/sync';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { AppLogger } from '@/utils/AppLogger';
 
 interface HalachaRow {
   board_id: string;
@@ -37,7 +38,7 @@ function loadHalachot(): HalachaRow[] {
     halachaCache = records;
     return records;
   } catch (error) {
-    console.error('Error loading halachot CSV:', error);
+    AppLogger.error('Error loading halachot CSV', { error });
     return [];
   }
 }
@@ -79,7 +80,7 @@ export async function GET(req: Request) {
       items 
     });
   } catch (e) {
-    console.error('[HALACHA] Error fetching halacha:', e);
+    AppLogger.error('[HALACHA] Error fetching halacha', { error: e });
     return NextResponse.json({ error: 'Unexpected error' }, { status: 500 });
   }
 }

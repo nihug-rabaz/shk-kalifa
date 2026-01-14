@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { AppLogger } from '@/utils/AppLogger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,14 +49,14 @@ export async function GET(request: NextRequest) {
         },
       });
     } catch (error) {
-      console.error('Error reading file:', error);
+      AppLogger.error('Error reading file in board-asset', { error, filePath });
       return NextResponse.json(
         { error: 'File not found' },
         { status: 404 }
       );
     }
   } catch (error) {
-    console.error('Board asset API error:', error);
+    AppLogger.error('Board asset API error', { error });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

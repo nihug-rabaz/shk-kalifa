@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { AppLogger } from '@/utils/AppLogger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -110,14 +111,14 @@ export async function GET(request: NextRequest) {
         },
       });
     } catch (error) {
-      console.error('Error reading HTML:', error);
+      AppLogger.error('Error reading HTML in board-html', { error, htmlPath });
       return NextResponse.json(
         { error: 'HTML file not found' },
         { status: 404 }
       );
     }
   } catch (error) {
-    console.error('Board HTML API error:', error);
+    AppLogger.error('Board HTML API error', { error });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

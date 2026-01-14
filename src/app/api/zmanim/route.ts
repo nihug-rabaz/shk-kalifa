@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { AppLogger } from '@/utils/AppLogger';
 import { HDate, Location, Zmanim, getSedra } from '@hebcal/core';
 
 type Req = { latitude: number; longitude: number; date?: string };
@@ -254,7 +255,7 @@ export async function POST(req: Request) {
       times: times
     });
   } catch (error) {
-    console.error('Error fetching from zmanim API:', error);
+    AppLogger.error('Error fetching from zmanim API', { error });
     // Fallback to local calculation if API fails
     const hebrewDate = new HDate(gregorianDate);
     const hebrewDay = hebrewDate.getDate();

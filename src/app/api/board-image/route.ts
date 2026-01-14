@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { AppLogger } from '@/utils/AppLogger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,14 +32,14 @@ export async function GET(request: NextRequest) {
         },
       });
     } catch (error) {
-      console.error('Error reading image:', error);
+      AppLogger.error('Error reading image', { error, imagePath });
       return NextResponse.json(
         { error: 'Image not found' },
         { status: 404 }
       );
     }
   } catch (error) {
-    console.error('Board image API error:', error);
+    AppLogger.error('Board image API error', { error });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

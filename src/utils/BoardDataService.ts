@@ -31,13 +31,11 @@ class BoardDataService {
     try {
       const response = await fetch(`/api/board-data?board_id=${boardId}`);
       if (!response.ok) {
-        console.error('Failed to fetch board data:', response.status);
         return null;
       }
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error fetching board data:', error);
       return null;
     }
   }
@@ -56,7 +54,6 @@ class BoardDataService {
       });
       return response.ok;
     } catch (error) {
-      console.error('Error updating board data:', error);
       return false;
     }
   }

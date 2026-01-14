@@ -1,8 +1,11 @@
 (function() {
   'use strict';
 
+  const DEBUG_LOGS = false;
+
   function safeLog(...args) {
     try {
+      if (!DEBUG_LOGS) return;
       if (console && typeof console.log === 'function') {
         console.log(...args);
       }
@@ -12,6 +15,7 @@
 
   function safeWarn(...args) {
     try {
+      if (!DEBUG_LOGS) return;
       if (console && typeof console.warn === 'function') {
         console.warn(...args);
       }
@@ -280,6 +284,86 @@
       });
       this.objectUrls.clear();
     }
+
+    cleanupUnusedObjectUrls() {
+      const maxUrls = 50;
+      if (this.objectUrls.size > maxUrls) {
+        const urlsToRemove = Array.from(this.objectUrls.keys()).slice(0, this.objectUrls.size - maxUrls);
+        urlsToRemove.forEach(url => {
+          this.revokeObjectUrl(url);
+        });
+      }
+    }
+
+    async cleanupIndexedDB() {
+      try {
+        await this.init();
+        if (!this.db) return;
+        
+        const maxSize = 100 * 1024 * 1024;
+        const transaction = this.db.transaction([this.storeName], 'readonly');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.getAllKeys();
+        
+        return new Promise((resolve) => {
+          request.onsuccess = async () => {
+            try {
+              const keys = request.result;
+              if (keys.length === 0) {
+                resolve();
+                return;
+              }
+              
+              let totalSize = 0;
+              const entries = [];
+              
+              for (const key of keys) {
+                try {
+                  const getTransaction = this.db.transaction([this.storeName], 'readonly');
+                  const getStore = getTransaction.objectStore(this.storeName);
+                  const getRequest = getStore.get(key);
+                  
+                  await new Promise((getResolve) => {
+                    getRequest.onsuccess = () => {
+                      const blob = getRequest.result;
+                      const size = blob ? blob.size : 0;
+                      totalSize += size;
+                      entries.push({ key, size });
+                      getResolve();
+                    };
+                    getRequest.onerror = () => getResolve();
+                  });
+                } catch (e) {
+                  safeWarn('[IMAGECACHE] Error getting blob size for key:', key);
+                }
+              }
+              
+              if (totalSize > maxSize) {
+                entries.sort((a, b) => a.size - b.size);
+                const toRemove = Math.floor(entries.length * 0.3);
+                const deleteTransaction = this.db.transaction([this.storeName], 'readwrite');
+                const deleteStore = deleteTransaction.objectStore(this.storeName);
+                
+                for (let i = 0; i < toRemove; i++) {
+                  deleteStore.delete(entries[i].key);
+                }
+                safeLog('[IMAGECACHE] Cleaned up', toRemove, 'old images from IndexedDB');
+              }
+              resolve();
+            } catch (e) {
+              safeWarn('[IMAGECACHE] Error during cleanup:', e);
+              resolve();
+            }
+          };
+          request.onerror = () => {
+            safeWarn('[IMAGECACHE] Error getting keys for cleanup');
+            resolve();
+          };
+        });
+      } catch (e) {
+        safeWarn('[IMAGECACHE] Error in cleanupIndexedDB:', e);
+      }
+    }
   }
 
   class BoardDataLoader {
@@ -310,6 +394,9 @@
       this.lastLoadContentTime = 0;
       this.debounceDelay = 5000;
       this.lastYeshivaUpdatesIds = '';
+      this.maxArraySize = 100;
+      this.cleanupInterval = null;
+      this.objectUrlCleanupInterval = null;
     }
 
     getBoardId() {
@@ -317,10 +404,26 @@
     }
 
     addTimeout(timeoutId) {
+      if (this.activeTimeouts.length >= this.maxArraySize) {
+        const oldest = this.activeTimeouts.shift();
+        try {
+          clearTimeout(oldest);
+        } catch (e) {
+          safeWarn('[LOADER] Error clearing oldest timeout:', e);
+        }
+      }
       this.activeTimeouts.push(timeoutId);
     }
 
     addInterval(intervalId) {
+      if (this.activeIntervals.length >= this.maxArraySize) {
+        const oldest = this.activeIntervals.shift();
+        try {
+          clearInterval(oldest);
+        } catch (e) {
+          safeWarn('[LOADER] Error clearing oldest interval:', e);
+        }
+      }
       this.activeIntervals.push(intervalId);
     }
 
@@ -357,9 +460,24 @@
       this.activeAbortControllers = [];
     }
 
+    cleanupOldAbortControllers() {
+      if (this.activeAbortControllers.length >= this.maxArraySize) {
+        const toRemove = this.activeAbortControllers.length - this.maxArraySize;
+        for (let i = 0; i < toRemove; i++) {
+          try {
+            this.activeAbortControllers[i].abort();
+          } catch (e) {
+            safeWarn('[LOADER] Error aborting old controller:', e);
+          }
+        }
+        this.activeAbortControllers = this.activeAbortControllers.slice(toRemove);
+      }
+    }
+
     async checkOnline() {
       if (!navigator.onLine) return false;
       try {
+        this.cleanupOldAbortControllers();
         const controller = new AbortController();
         this.activeAbortControllers.push(controller);
         const timeoutId = setTimeout(() => {
@@ -469,25 +587,74 @@
       }
     }
 
+    getTodayAndShabbatDates() {
+      const today = new Date();
+      const todayStr = today.toISOString().slice(0, 10);
+      
+      const dayOfWeek = today.getDay();
+      const daysUntilShabbat = dayOfWeek === 5 ? 0 : (5 - dayOfWeek + 7) % 7;
+      const shabbatDate = new Date(today);
+      shabbatDate.setDate(today.getDate() + daysUntilShabbat);
+      const shabbatStr = shabbatDate.toISOString().slice(0, 10);
+      
+      return { today: todayStr, shabbat: shabbatStr };
+    }
+
+    cleanupLocalStorage() {
+      try {
+        const { today, shabbat } = this.getTodayAndShabbatDates();
+        const keys = Object.keys(localStorage);
+        let cleaned = 0;
+        
+        keys.forEach(key => {
+          try {
+            if (key.startsWith('shchakim_content_') || key.startsWith('shchakim_content_timestamp_')) {
+              return;
+            }
+            
+            if (key.startsWith('zmanim_')) {
+              const dateMatch = key.match(/zmanim_[^_]+_[^_]+_(\d{4}-\d{2}-\d{2})/);
+              if (dateMatch) {
+                const dateStr = dateMatch[1];
+                if (dateStr !== today && dateStr !== shabbat) {
+                  localStorage.removeItem(key);
+                  cleaned++;
+                }
+              }
+            } else if (key.startsWith('halacha_')) {
+              const dateMatch = key.match(/halacha_(\d{4}-\d{2}-\d{2})/);
+              if (dateMatch) {
+                const dateStr = dateMatch[1];
+                if (dateStr !== today && dateStr !== shabbat) {
+                  localStorage.removeItem(key);
+                  cleaned++;
+                }
+              }
+            }
+          } catch (e) {
+            safeWarn('[LOADER] Error cleaning localStorage key:', key, e);
+          }
+        });
+        
+        if (cleaned > 0) {
+          safeLog('[LOADER] Cleaned', cleaned, 'old localStorage entries');
+        }
+      } catch (e) {
+        safeError('[LOADER] Error in cleanupLocalStorage:', e);
+      }
+    }
+
     safeSetLocalStorage(key, value) {
       try {
         localStorage.setItem(key, value);
       } catch (e) {
         if (e.name === 'QuotaExceededError' || e.code === 22) {
           safeWarn('[LOADER] LocalStorage quota exceeded, cleaning old cache');
+          this.cleanupLocalStorage();
           try {
-            const keys = Object.keys(localStorage);
-            const oldKeys = keys.filter(k => k.startsWith('shchakim_') || k.startsWith('zmanim_') || k.startsWith('halacha_'));
-            oldKeys.slice(0, Math.floor(oldKeys.length / 2)).forEach(k => {
-              try {
-                localStorage.removeItem(k);
-              } catch (err) {
-                safeWarn('[LOADER] Error removing old key:', err);
-              }
-            });
             localStorage.setItem(key, value);
           } catch (cleanupError) {
-            safeError('[LOADER] Failed to cleanup localStorage:', cleanupError);
+            safeError('[LOADER] Failed to save after cleanup:', cleanupError);
           }
         } else {
           safeWarn('[LOADER] LocalStorage error:', e);
@@ -549,6 +716,7 @@
         const isOnline = await this.checkOnline();
         if (isOnline) {
           try {
+            this.cleanupOldAbortControllers();
             const ts = Date.now();
             const controller = new AbortController();
             this.activeAbortControllers.push(controller);
@@ -674,6 +842,7 @@
       const cacheKey = `zmanim_${location.latitude}_${location.longitude}_${new Date().toISOString().slice(0, 10)}`;
       
       try {
+        this.cleanupOldAbortControllers();
         const controller = new AbortController();
         this.activeAbortControllers.push(controller);
         const timeoutId = setTimeout(() => {
@@ -984,6 +1153,7 @@
       try {
         const location = data?.boardInfo?.location;
         if (location && location.latitude && location.longitude) {
+          this.cleanupOldAbortControllers();
           const controller = new AbortController();
           this.activeAbortControllers.push(controller);
           const timeoutId = setTimeout(() => {
@@ -1027,6 +1197,7 @@
       safeLog('[HALACHA] updateHalacha called');
       
       try {
+        this.cleanupOldAbortControllers();
         const controller = new AbortController();
         this.activeAbortControllers.push(controller);
         const timeoutId = setTimeout(() => {
@@ -1077,8 +1248,6 @@
               } else {
                 safeWarn('[HALACHA] No combined text to display');
               }
-            } else {
-              safeError('[HALACHA] Container .div-wrapper-3 not found!');
             }
           } else {
             safeWarn('[HALACHA] No halacha items found for today');
@@ -1167,10 +1336,10 @@
         if (yeshivaUpdates.length > 0) {
           const yeshivaImage = document.querySelector('.div-10 img.element-dadfb-ec-b');
           if (yeshivaImage) {
-            console.log('[YESHIVA] Found yeshiva image element, displaying', yeshivaUpdates.length, 'updates');
+            safeLog('[YESHIVA] Found yeshiva image element, displaying', yeshivaUpdates.length, 'updates');
             this.displayYeshivaImagesWithRotation(yeshivaUpdates, yeshivaImage);
           } else {
-            console.warn('[YESHIVA] Yeshiva image element not found (.div-10 img.element-dadfb-ec-b)');
+            safeWarn('[YESHIVA] Yeshiva image element not found (.div-10 img.element-dadfb-ec-b)');
           }
         } else {
           const yeshivaImage = document.querySelector('.div-10 img.element-dadfb-ec-b');
@@ -1337,12 +1506,12 @@
 
     displayYeshivaImagesWithRotation(updates, imageElement) {
       try {
-        console.log('[YESHIVA-IMAGE] displayYeshivaImagesWithRotation called with', updates.length, 'updates');
-        console.log('[YESHIVA-IMAGE] Updates:', updates.map(u => ({ id: u.id, title: u.title, imageUrl: u.imageUrl })));
-        console.log('[YESHIVA-IMAGE] Image element:', imageElement);
+        safeLog('[YESHIVA-IMAGE] displayYeshivaImagesWithRotation called with', updates.length, 'updates');
+        safeLog('[YESHIVA-IMAGE] Updates:', updates.map(u => ({ id: u.id, title: u.title, imageUrl: u.imageUrl })));
+        safeLog('[YESHIVA-IMAGE] Image element:', imageElement);
         
         if (!updates || updates.length === 0 || !imageElement) {
-          console.warn('[YESHIVA-IMAGE] Missing updates or image element');
+          safeWarn('[YESHIVA-IMAGE] Missing updates or image element');
           return;
         }
 
@@ -1354,24 +1523,20 @@
         const currentUpdatesIds = updates.map(u => `${u.id || u.title}:${u.imageUrl || u.image || u.img || ''}`).join('|');
         const lastUpdatesIds = this.lastYeshivaUpdatesIds || '';
         
-        console.log('[YESHIVA-IMAGE] Current IDs:', currentUpdatesIds);
-        console.log('[YESHIVA-IMAGE] Last IDs:', lastUpdatesIds);
         safeLog('[YESHIVA-IMAGE] Current IDs:', currentUpdatesIds);
         safeLog('[YESHIVA-IMAGE] Last IDs:', lastUpdatesIds);
         
         if (currentUpdatesIds !== lastUpdatesIds) {
-          console.log('[YESHIVA-IMAGE] Updates changed, resetting rotation');
           safeLog('[YESHIVA-IMAGE] Updates changed, resetting rotation');
           this.lastYeshivaUpdatesIds = currentUpdatesIds;
           this.yeshivaImageIndex = 0;
           this.showCurrentYeshivaImage(updates, imageElement, true).then(() => {
             this.rotateToNextYeshivaImage(updates, imageElement);
           }).catch(e => {
-            console.error('[YESHIVA] Error in displayYeshivaImagesWithRotation:', e);
             safeError('[YESHIVA] Error in displayYeshivaImagesWithRotation:', e);
           });
         } else {
-          console.log('[YESHIVA-IMAGE] Updates unchanged, forcing image update');
+          safeLog('[YESHIVA-IMAGE] Updates unchanged, forcing image update');
           safeLog('[YESHIVA-IMAGE] Updates unchanged, forcing image update');
           this.showCurrentYeshivaImage(updates, imageElement, true);
         }
@@ -1404,28 +1569,28 @@
 
     async showCurrentYeshivaImage(updates, imageElement, forceUpdate = false) {
       try {
-        console.log('[YESHIVA-IMAGE] showCurrentYeshivaImage called, index:', this.yeshivaImageIndex, 'updates:', updates.length);
+        safeLog('[YESHIVA-IMAGE] showCurrentYeshivaImage called, index:', this.yeshivaImageIndex, 'updates:', updates.length);
         
         if (updates.length === 0 || !imageElement) {
-          console.warn('[YESHIVA-IMAGE] No updates or image element');
+          safeWarn('[YESHIVA-IMAGE] No updates or image element');
           return;
         }
 
         const currentUpdate = updates[this.yeshivaImageIndex];
         if (!currentUpdate) {
-          console.warn('[YESHIVA-IMAGE] No current update at index', this.yeshivaImageIndex);
+          safeWarn('[YESHIVA-IMAGE] No current update at index', this.yeshivaImageIndex);
           return;
         }
 
-        console.log('[YESHIVA-IMAGE] Current update:', currentUpdate);
+        safeLog('[YESHIVA-IMAGE] Current update:', currentUpdate);
 
         const imageUrl = currentUpdate.imageUrl || currentUpdate.image || currentUpdate.img;
         if (!imageUrl) {
-          console.warn('[YESHIVA-IMAGE] No imageUrl in update:', currentUpdate);
+          safeWarn('[YESHIVA-IMAGE] No imageUrl in update:', currentUpdate);
           return;
         }
         
-        console.log('[YESHIVA-IMAGE] Image URL:', imageUrl);
+        safeLog('[YESHIVA-IMAGE] Image URL:', imageUrl);
 
         const lockKey = `yeshiva_${imageUrl}`;
         if (this.imageLoadingLocks.has(lockKey) && !forceUpdate) {
@@ -1967,6 +2132,49 @@
       }
     }
 
+    setupPeriodicCleanup() {
+      try {
+        if (this.cleanupInterval) {
+          clearInterval(this.cleanupInterval);
+        }
+        const intervalId = setInterval(async () => {
+          try {
+            safeLog('[CLEANUP] Starting periodic cleanup');
+            this.cleanupLocalStorage();
+            this.imageCache.cleanupUnusedObjectUrls();
+            await this.imageCache.cleanupIndexedDB();
+            this.cleanupOldAbortControllers();
+            safeLog('[CLEANUP] Periodic cleanup completed');
+          } catch (e) {
+            safeError('[CLEANUP] Error in periodic cleanup:', e);
+          }
+        }, 30 * 60 * 1000);
+        this.addInterval(intervalId);
+        this.cleanupInterval = intervalId;
+      } catch (e) {
+        safeError('[CLEANUP] Error setting up periodic cleanup:', e);
+      }
+    }
+
+    setupObjectUrlCleanup() {
+      try {
+        if (this.objectUrlCleanupInterval) {
+          clearInterval(this.objectUrlCleanupInterval);
+        }
+        const intervalId = setInterval(() => {
+          try {
+            this.imageCache.cleanupUnusedObjectUrls();
+          } catch (e) {
+            safeWarn('[CLEANUP] Error in object URL cleanup:', e);
+          }
+        }, 10 * 60 * 1000);
+        this.addInterval(intervalId);
+        this.objectUrlCleanupInterval = intervalId;
+      } catch (e) {
+        safeError('[CLEANUP] Error setting up object URL cleanup:', e);
+      }
+    }
+
     setupOnlineOfflineListeners() {
       try {
         const onlineHandler = async () => {
@@ -2028,9 +2236,12 @@
       try {
         safeLog('[LOADER] BoardDataLoader.start() called');
         this.setupVisibilityListener();
+        this.cleanupLocalStorage();
         this.loadContent();
         this.setupPeriodicUpdates();
         this.setupOnlineOfflineListeners();
+        this.setupPeriodicCleanup();
+        this.setupObjectUrlCleanup();
       } catch (e) {
         safeError('[LOADER] Error in start:', e);
       }
@@ -2068,6 +2279,15 @@
         if (this.safetyRotationInterval) {
           clearTimeout(this.safetyRotationInterval);
           this.safetyRotationInterval = null;
+        }
+
+        if (this.cleanupInterval) {
+          clearInterval(this.cleanupInterval);
+          this.cleanupInterval = null;
+        }
+        if (this.objectUrlCleanupInterval) {
+          clearInterval(this.objectUrlCleanupInterval);
+          this.objectUrlCleanupInterval = null;
         }
 
         this.eventListeners.forEach(({ type, handler, target = window }) => {
