@@ -5,12 +5,14 @@ const FIXED_BOARD_INFO = {
   linked: true as const,
   logical_board_id: 1,
   name: 'מפקדת הרבנות הצבאית',
+  display_name: 'מפקדת הרבנות הצבאית',
 };
 
 interface BoardInfo {
   linked: boolean;
   user_id?: string;
   name?: string;
+  display_name?: string;
   logical_board_id?: number;
 }
 

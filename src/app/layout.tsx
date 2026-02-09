@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { BoardTitle } from './BoardTitle';
 
 export const metadata: Metadata = {
-  title: 'שיוך לוח - Shchakim',
+  title: 'מפקדת הרבנות הצבאית',
   description: 'מערכת שיוך לוחות',
 };
 
@@ -13,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="ltr">
-      <body>{children}</body>
+      <body>
+        <BoardTitle />
+        {children}
+      </body>
     </html>
   );
 }
