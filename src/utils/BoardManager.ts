@@ -1,3 +1,12 @@
+// לוח קבוע (מפקדת הרבנות הצבאית) – בלי ברקוד/QR, תמיד מזהה כלוח 1
+const FIXED_BOARD_ID = '1';
+
+const FIXED_BOARD_INFO = {
+  linked: true as const,
+  logical_board_id: 1,
+  name: 'מפקדת הרבנות הצבאית',
+};
+
 interface BoardInfo {
   linked: boolean;
   user_id?: string;
@@ -8,11 +17,10 @@ interface BoardInfo {
 class BoardManager {
   private static readonly BOARD_ID_KEY = 'shchakim_board_id';
   private static readonly BOARD_INFO_KEY = 'shchakim_board_info';
-  
-  private static memoryStorage: {
-    boardId?: string;
-    boardInfo?: BoardInfo;
-  } = {};
+
+  static isFixedBoard(): boolean {
+    return !!FIXED_BOARD_ID;
+  }
 
   static generateBoardId(): string {
     const timestamp = Date.now().toString(36);
@@ -44,7 +52,15 @@ class BoardManager {
     }
   }
 
+  private static memoryStorage: {
+    boardId?: string;
+    boardInfo?: BoardInfo;
+  } = {};
+
   static getBoardId(): string {
+    if (FIXED_BOARD_ID) {
+      return FIXED_BOARD_ID;
+    }
     if (this.memoryStorage.boardId) {
       return this.memoryStorage.boardId;
     }
@@ -116,6 +132,9 @@ class BoardManager {
   }
 
   static getBoardInfo(): BoardInfo | null {
+    if (FIXED_BOARD_ID) {
+      return { ...FIXED_BOARD_INFO };
+    }
     if (this.memoryStorage.boardInfo) {
       return this.memoryStorage.boardInfo;
     }

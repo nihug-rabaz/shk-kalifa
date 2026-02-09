@@ -30,6 +30,10 @@ export default function ClaimPage() {
 
     const initialize = async () => {
       try {
+        if (BoardManager.isFixedBoard()) {
+          router.replace('/display');
+          return;
+        }
         const info = BoardManager.getBoardInfo();
         if (info?.linked) {
           router.push('/display');

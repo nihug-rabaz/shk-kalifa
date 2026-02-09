@@ -19,26 +19,32 @@ export default function DisplayPage() {
         const boardInfo = BoardManager.getBoardInfo();
         const id = BoardManager.getBoardId();
         setBoardId(id);
-        
+
         if (!id) {
-          router.push('/claim');
+          if (!BoardManager.isFixedBoard()) router.push('/claim');
           return;
         }
-        
+
+        if (BoardManager.isFixedBoard()) {
+          setIsLinked(true);
+          setIsLoading(false);
+          return;
+        }
+
         try {
           const response = await fetch(`/api/check-claim-status?board_id=${id}`);
           if (response.ok) {
             const data = await response.json();
-            const isLinked = data.linked === true || 
-                           data.linked === 'true' || 
-                           (data.logical_board_id && data.logical_board_id > 0);
-            
+            const isLinked = data.linked === true ||
+              data.linked === 'true' ||
+              (data.logical_board_id && data.logical_board_id > 0);
+
             if (!isLinked) {
               BoardManager.clearBoardInfo();
               router.push('/claim');
               return;
             }
-            
+
             const updatedInfo = {
               linked: true,
               user_id: data.user_id,
@@ -49,40 +55,40 @@ export default function DisplayPage() {
             setIsLinked(true);
             setIsLoading(false);
           } else {
-            const linked = boardInfo?.linked === true || 
-                          (boardInfo?.logical_board_id && boardInfo.logical_board_id > 0);
-            
+            const linked = boardInfo?.linked === true ||
+              (boardInfo?.logical_board_id && boardInfo.logical_board_id > 0);
+
             if (!linked) {
               router.push('/claim');
               return;
             }
-            
+
             setIsLinked(true);
             setIsLoading(false);
           }
         } catch (error) {
           console.warn('Error checking board status from server:', error);
-          const linked = boardInfo?.linked === true || 
-                        (boardInfo?.logical_board_id && boardInfo.logical_board_id > 0);
-          
+          const linked = boardInfo?.linked === true ||
+            (boardInfo?.logical_board_id && boardInfo.logical_board_id > 0);
+
           if (!linked) {
             router.push('/claim');
             return;
           }
-          
+
           setIsLinked(true);
           setIsLoading(false);
         }
       } catch (error) {
         console.error('Error checking board info:', error);
-        router.push('/claim');
+        if (!BoardManager.isFixedBoard()) router.push('/claim');
       }
     };
 
     checkLinked();
-    
+
     const statusCheckInterval = setInterval(checkLinked, 30000);
-    
+
     return () => {
       clearInterval(statusCheckInterval);
     };
