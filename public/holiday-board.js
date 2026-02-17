@@ -19,8 +19,8 @@
       return current >= start && current <= end;
     }
 
-    apply() {
-      const now = new Date();
+    apply(asOfDate) {
+      const now = asOfDate ? new Date(asOfDate.getFullYear(), asOfDate.getMonth(), asOfDate.getDate()) : new Date();
       if (!this.isInRange(now)) {
         return;
       }
@@ -63,16 +63,62 @@
     }
   }
 
-  function initHolidayBoard() {
-    const now = new Date();
-    const endDate = new Date(now.getFullYear(), 2, 4);
+  function parseYYYYMMDD(s) {
+    const parts = String(s).split('-').map(Number);
+    if (parts.length !== 3) return null;
+    const y = parts[0], m = parts[1] - 1, d = parts[2];
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+    return new Date(y, m, d);
+  }
+
+  function applyWithRange(range, asOfDate) {
+    const start = parseYYYYMMDD(range.start);
+    const end = parseYYYYMMDD(range.end);
+    if (!start || !end) return;
     const controller = new HolidayBoardController({
-      imageSrc: 'img/purim.png',
-      startDate: now,
-      endDate: endDate,
+      startDate: start,
+      endDate: end,
       containerSelector: '.frame'
     });
-    controller.apply();
+    controller.apply(asOfDate);
+  }
+
+  function getTestDate() {
+    try {
+      const url = new URL(window.location.href);
+      const testParam = url.searchParams.get('purim_test');
+      if (!testParam) return null;
+      return parseYYYYMMDD(testParam);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function initHolidayBoard() {
+    const testDate = getTestDate();
+    if (testDate) {
+      fetch('/api/purim-range?date=' + testDate.getFullYear() + '-' + String(testDate.getMonth() + 1).padStart(2, '0') + '-' + String(testDate.getDate()).padStart(2, '0'))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (range) {
+          if (range && range.start && range.end && range.inRange) {
+            applyWithRange(range, testDate);
+          }
+        })
+        .catch(function () {});
+      return;
+    }
+    if (window.PURIM_RANGE && window.PURIM_RANGE.start && window.PURIM_RANGE.end) {
+      applyWithRange(window.PURIM_RANGE);
+      return;
+    }
+    fetch('/api/purim-range')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (range) {
+        if (range && range.start && range.end) {
+          applyWithRange(range);
+        }
+      })
+      .catch(function () {});
   }
 
   if (document.readyState === 'loading') {
@@ -81,4 +127,3 @@
     initHolidayBoard();
   }
 })();
-

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { AppLogger } from '@/utils/AppLogger';
+import { getPurimRange } from '@/utils/PurimRange';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,10 +39,12 @@ export async function GET(request: NextRequest) {
       htmlContent = htmlContent.replace(/src="time\.js"/g, `src="${basePath}/time.js"`);
       htmlContent = htmlContent.replace(/src="board-data\.js"/g, `src="${basePath}/board-data.js"`);
 
+      const purim = getPurimRange();
       const dataScript = `
         <script>
           ${board_id ? `window.BOARD_ID = '${board_id}';` : ''}
           ${board_id ? `window.BOARD_DATA_API = '/api/board-data?board_id=${board_id}';` : ''}
+          window.PURIM_RANGE = { start: '${purim.start}', end: '${purim.end}' };
         </script>
       `;
       htmlContent = htmlContent.replace('</head>', `${dataScript}</head>`);

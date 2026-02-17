@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import BoardManager from '@/utils/BoardManager';
 
 export default function DisplayPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const purimTest = searchParams.get('purim_test');
   const [currentBoard, setCurrentBoard] = useState(1);
   const [isLinked, setIsLinked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -189,7 +191,7 @@ export default function DisplayPage() {
               (window as any).__iframeRefs = iframeRefs;
             }
           }}
-          src={`/api/welcome-html?board=1&board_id=${boardId}`}
+          src={`/api/welcome-html?board=1&board_id=${boardId}${purimTest ? `&purim_test=${encodeURIComponent(purimTest)}` : ''}`}
           style={{
             width: '100%',
             height: '100%',
@@ -221,7 +223,7 @@ export default function DisplayPage() {
               (window as any).__iframeRefs = iframeRefs;
             }
           }}
-          src={`/api/welcome-html?board=2&board_id=${boardId}`}
+          src={`/api/welcome-html?board=2&board_id=${boardId}${purimTest ? `&purim_test=${encodeURIComponent(purimTest)}` : ''}`}
           style={{
             width: '100%',
             height: '100%',
