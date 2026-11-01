@@ -21,7 +21,7 @@ function parseId(raw: string): number | null {
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const gate = await requireAdmin();
   if (gate instanceof Response) return gate;
-  const denied = checkInjectPassword(req);
+  const denied = await checkInjectPassword(req);
   if (denied) return denied;
   const id = parseId(params.id);
   if (!id) return badRequest('bad id');

@@ -60,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const body = await req.json().catch(() => null);
       // injected tracks live apart from the playlist and are password-gated
       if (body?.kind === 'inject') {
-        const denied = checkInjectPassword(req);
+        const denied = await checkInjectPassword(req);
         if (denied) return denied;
       }
       return startChunked(id, body);
