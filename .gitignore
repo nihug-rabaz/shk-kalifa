@@ -23,3 +23,5 @@ Thumbs.db
 # חבילות עדכון של ה-kiosk (17MB כל אחת) — נשמרות כ-release, לא בגיט.
 # latest.json כן נשמר כדי שהמניפסט יהיה מתועד.
 public/updates/*.zip
+
+.env*
