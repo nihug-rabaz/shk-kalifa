@@ -1,0 +1,389 @@
+.frame {
+  position: relative;
+  width: 4000px;
+  height: 2250px;
+  background-color: #ffffff;
+  transform-origin: 0 0;
+}
+
+.frame .element {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4000px;
+  height: 2250px;
+  aspect-ratio: 1.78;
+  object-fit: cover;
+}
+
+.frame .text-wrapper {
+  position: absolute;
+  top: 1903px;
+  left: 179px;
+  font-family: "Fb Liddar-Bold", Helvetica;
+  font-size: 120.3px;
+  letter-spacing: 0;
+  line-height: 86px;
+  font-weight: 700;
+  color: #1c4080;
+  direction: rtl;
+}
+
+.frame .layer {
+  position: absolute;
+  top: 234px;
+  left: 951px;
+  width: 2545px;
+  height: 125px;
+}
+
+.frame .linked-file {
+  position: absolute;
+  top: 8465px;
+  left: 232px;
+  width: 4000px;
+  height: 2250px;
+}
+
+.frame .group {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.frame .div {
+  position: absolute;
+  top: 2156px;
+  left: 1229px;
+  width: 1675px;
+  font-family: "Ploni ML v2 AAA-Medium", Helvetica;
+  font-weight: 500;
+  color: #ffffff;
+  font-size: 79.2px;
+  text-align: left;
+  letter-spacing: 0;
+  line-height: 79.2px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .div-2 {
+  display: flex;
+  flex-direction: column;
+  width: 2644px;
+  align-items: flex-end;
+  gap: 20px;
+  position: absolute;
+  top: 414px;
+  left: 851px;
+}
+
+.frame .div-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 2560px;
+  align-items: flex-end;
+  gap: 20px;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.frame .p {
+  position: relative;
+  align-self: stretch;
+  margin-top: -1.00px;
+  font-family: "Polin-A-Bold", Helvetica;
+  font-size: 80.5px;
+  letter-spacing: -0.87px;
+  line-height: 79.2px;
+  font-weight: 700;
+  color: #1c4080;
+  direction: rtl;
+}
+
+.frame .frame-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 854px;
+  align-items: center;
+  gap: 10px;
+  padding: 67px 126px;
+  position: relative;
+  align-self: stretch;
+  width: 100%;
+  background-color: #ffffff;
+  border-radius: 100px;
+}
+
+.frame .div-3 {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 56px;
+  position: relative;
+  flex: 1;
+  flex-grow: 1;
+}
+
+.frame .text-wrapper-2 {
+  position: relative;
+  width: 732px;
+  height: 682px;
+  margin-top: -1.00px;
+  font-family: "Polin-A-Regular", Helvetica;
+  overflow: hidden;
+  direction: rtl;
+  font-weight: 400;
+  color: #000000;
+  font-size: 30px;
+  text-align: justify;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+
+.frame .text-wrapper-3 {
+  position: relative;
+  width: 732px;
+  height: 707px;
+  margin-top: -1.00px;
+  font-family: "Polin-A-Regular", Helvetica;
+  overflow: hidden;
+  direction: rtl;
+  font-weight: 400;
+  color: #000000;
+  font-size: 30px;
+  text-align: justify;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+
+.frame .text-wrapper-4 {
+  position: relative;
+  width: 733px;
+  height: 707px;
+  margin-top: -1.00px;
+  font-family: "Polin-A-Regular", Helvetica;
+  font-weight: 400;
+  color: #000000;
+  font-size: 30px;
+  text-align: justify;
+  letter-spacing: 0;
+  line-height: 1.4;
+  direction: rtl;
+  overflow: hidden;
+}
+
+.frame .group-2 {
+  position: absolute;
+  top: 1168px;
+  left: 851px;
+  width: 821px;
+  height: 161px;
+}
+
+.frame .img {
+  position: absolute;
+  top: 0;
+  left: 562px;
+  width: 161px;
+  height: 161px;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.frame .text-wrapper-5 {
+  position: absolute;
+  top: 92px;
+  left: 0;
+  width: 817px;
+  font-family: "Ploni ML v2 AAA-Bold", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 45px;
+  letter-spacing: 0;
+  line-height: 40px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .text-wrapper-6 {
+  position: absolute;
+  top: 128px;
+  left: 0;
+  width: 817px;
+  font-family: "Ploni ML v2 AAA-Bold", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 31px;
+  letter-spacing: 0;
+  line-height: 40px;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.frame .div-4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 186.13px;
+  position: absolute;
+  top: 1430px;
+  left: 851px;
+}
+
+.frame .div-5 {
+  display: flex;
+  flex-direction: column;
+  width: 869.66px;
+  align-items: flex-end;
+  gap: 20.68px;
+  position: relative;
+}
+
+.frame .text-wrapper-7 {
+  position: relative;
+  align-self: stretch;
+  margin-top: -1.03px;
+  font-family: "Ploni ML v2 AAA-Bold", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 80.5px;
+  letter-spacing: 0;
+  line-height: 81.9px;
+  direction: rtl;
+}
+
+.frame .div-6 {
+  display: flex;
+  align-items: center;
+  gap: 20.68px;
+  position: relative;
+  align-self: stretch;
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.frame .div-7 {
+  display: flex;
+  flex-direction: column;
+  width: 276.1px;
+  align-items: center;
+  gap: 5.17px;
+  position: relative;
+}
+
+.frame .element-2 {
+  position: relative;
+  align-self: stretch;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.frame .text-wrapper-8 {
+  position: relative;
+  align-self: stretch;
+  font-family: "Polin-A-Bold", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 38.4px;
+  text-align: center;
+  letter-spacing: 0;
+  line-height: normal;
+  direction: rtl;
+}
+
+.frame .div-8 {
+  display: flex;
+  flex-direction: column;
+  width: 276.1px;
+  align-items: center;
+  justify-content: center;
+  gap: 5.17px;
+  position: relative;
+}
+
+.frame .div-9 {
+  display: flex;
+  flex-direction: column;
+  width: 1584.21px;
+  align-items: flex-end;
+  gap: 20.68px;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.frame .div-wrapper-2 {
+  display: flex;
+  flex-direction: column;
+  width: 775.56px;
+  align-items: flex-end;
+  gap: 20.68px;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.frame .text-wrapper-9 {
+  position: relative;
+  align-self: stretch;
+  margin-top: -1.03px;
+  font-family: "Ploni ML v2 AAA-Bold", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 80.5px;
+  letter-spacing: -0.24px;
+  line-height: 81.9px;
+  direction: rtl;
+}
+
+.frame .div-wrapper-3 {
+  display: flex;
+  height: 295.75px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10.34px;
+  padding: 24.82px 78.59px;
+  position: relative;
+  align-self: stretch;
+  width: 100%;
+  background-color: #ffffff;
+  border-radius: 103.41px;
+  overflow: hidden;
+}
+
+.frame .text-wrapper-10 {
+  position: relative;
+  width: 100%;
+  font-family: "Ploni ML v2 AAA-Bold", Helvetica;
+  font-weight: 700;
+  color: #1c4080;
+  font-size: 53.8px;
+  letter-spacing: 0;
+  line-height: 1.4;
+  text-align: right;
+  white-space: normal;
+  direction: rtl;
+}
+
+.frame .slider-container {
+  overflow: hidden;
+}
+
+.frame .sliding-text {
+  display: block;
+  white-space: normal;
+  animation-name: slide-vertical-repeat;
+  animation-duration: 60s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes slide-vertical-repeat {
+  0% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
+}

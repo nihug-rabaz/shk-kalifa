@@ -1,0 +1,25 @@
+# תלויות ופלט בילד
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# סודות — הערכים האמיתיים חיים ב-.env.local מקומית וב-Environment Variables ב-Vercel
+.env
+.env*.local
+
+# קישור הפרויקט ל-Vercel (מכיל projectId/orgId)
+.vercel
+
+# לוגים מקומיים
+logs/
+*.log
+
+# זבל של מערכת ההפעלה / עורכים
+.DS_Store
+Thumbs.db
+
+# חבילות עדכון של ה-kiosk (17MB כל אחת) — נשמרות כ-release, לא בגיט.
+# latest.json כן נשמר כדי שהמניפסט יהיה מתועד.
+public/updates/*.zip

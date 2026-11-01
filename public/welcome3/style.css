@@ -1,0 +1,38 @@
+/* Board 3 — full-screen photo. The backdrop matches the mint gradient of
+   boards 1 & 2 so letterboxing (fit = "contain") still looks like the system. */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #bbdfc5;
+}
+
+.photo-board {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(160deg, #dcefe3, #bbdfc5);
+}
+
+/* Absolutely filling the stage — a percentage height on a centred grid item
+   stays indefinite, so the image fell back to its intrinsic ratio and spilled
+   past the bottom of the screen. */
+.photo-board img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* overridden per config: cover | contain */
+  object-position: center;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+/* Only revealed once the file actually decoded — no half-drawn image on screen. */
+.photo-board.is-ready img {
+  opacity: 1;
+}

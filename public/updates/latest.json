@@ -1,0 +1,8 @@
+{
+    "version":  "20260825-1015",
+    "url":  "app-server-20260825-1015.zip",
+    "sha256":  "03CB0715E9C521C3852509391F35A193C117C34F09151198B5E0AC68084FCE56",
+    "bytes":  17657907,
+    "notes":  "offline hardening: no DB stall, photo cached in IndexedDB",
+    "releasedAt":  "2026-08-25T10:15:55.6504275Z"
+}

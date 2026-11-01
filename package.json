@@ -1,0 +1,40 @@
+{
+  "name": "shchakim-signage",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
+    "db:reset-admin": "node --env-file=.env.local scripts/reset-admin.mjs",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop shk-kalifa",
+    "pm2:restart": "pm2 restart shk-kalifa",
+    "pm2:delete": "pm2 delete shk-kalifa",
+    "pm2:logs": "pm2 logs shk-kalifa"
+  },
+  "dependencies": {
+    "@hebcal/core": "^6.0.5",
+    "bcryptjs": "^2.4.3",
+    "csv-parse": "^6.1.0",
+    "jose": "^5.9.6",
+    "kosher-zmanim": "^0.9.0",
+    "next": "^14.2.15",
+    "pg": "^8.13.1",
+    "qrcode": "^1.5.4",
+    "html5-qrcode": "^2.3.8",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.10",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "מערכת תצוגה - לוח",
+  "short_name": "לוח",
+  "start_url": "/display",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#bbdfc5",
+  "theme_color": "#1c4080",
+  "icons": []
+}
