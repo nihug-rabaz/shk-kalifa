@@ -13,7 +13,8 @@ import { LetterEditor } from '../../_components/LetterEditor';
 import { MusicEditor } from '../../_components/MusicEditor';
 import { PhotoBoardEditor } from '../../_components/PhotoBoardEditor';
 import { SupportLinesEditor } from '../../_components/SupportLinesEditor';
-import { DEFAULT_PHOTO_BOARD, normalizePhotoBoard } from '@/lib/photo-board';
+import { BoardPreview } from '../../_components/BoardPreview';
+import { DEFAULT_PHOTO_BOARD, boardRotation, isPhotoBoardLive, normalizePhotoBoard } from '@/lib/photo-board';
 import { DEFAULT_SUPPORT_LINES, normalizeSupportLines } from '@/lib/support-lines';
 import type {
   Prayer, BoardUpdate, Letter, MusicConfig, GroupLocation, Theme, PhotoBoard, SupportLine,
@@ -93,6 +94,7 @@ function Editor({ id }: { id: string }) {
   const router = useRouter();
   const { show, node } = useToast();
   const [tab, setTab] = useState<Tab>('content');
+  const [preview, setPreview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
@@ -249,7 +251,20 @@ function Editor({ id }: { id: string }) {
 
   return (
     <>
-      <AppBar title={name || 'עריכת קבוצה'} back="/admin" />
+      <AppBar
+        title={name || 'עריכת קבוצה'}
+        back="/admin"
+        right={
+          <button
+            className="iconbtn"
+            onClick={() => setPreview(true)}
+            aria-label="תצוגה מקדימה"
+            title="תצוגה מקדימה"
+          >
+            📺
+          </button>
+        }
+      />
       <div className="container">
         {err && <Banner kind="err">{err}</Banner>}
 
@@ -411,10 +426,17 @@ function Editor({ id }: { id: string }) {
         )}
       </div>
 
-      {tab !== 'screens' && (
+      {tab !== 'screens' && !preview && (
         <button className="fab" onClick={save} disabled={saving}>
           {saving ? 'שומר…' : '💾 שמור שינויים'}
         </button>
+      )}
+      {preview && (
+        <BoardPreview
+          groupId={id}
+          boards={boardRotation(isPhotoBoardLive(photoBoard))}
+          onClose={() => setPreview(false)}
+        />
       )}
       {node}
     </>
