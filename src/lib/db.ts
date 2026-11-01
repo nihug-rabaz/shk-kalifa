@@ -6,6 +6,18 @@ import { Pool, type QueryResultRow } from 'pg';
 // pooler endpoint (the DATABASE_URL provided already targets `-pooler`).
 const globalForDb = globalThis as unknown as { __pgPool?: Pool };
 
+/** A database on this machine (development) speaks plain TCP; everything else is remote
+    and must be encrypted. Without this, `postgres://…@localhost` fails the handshake. */
+export function sslFor(connectionString: string): { rejectUnauthorized: true } | false {
+  try {
+    const host = new URL(connectionString).hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return false;
+  } catch {
+    /* not a URL we can parse — treat it as remote and keep TLS on */
+  }
+  return { rejectUnauthorized: true };
+}
+
 function makePool(): Pool {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -14,7 +26,7 @@ function makePool(): Pool {
   return new Pool({
     connectionString,
     // Neon requires TLS; its certs are valid so we keep verification on.
-    ssl: { rejectUnauthorized: true },
+    ssl: sslFor(connectionString),
     max: 5,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,

@@ -3,6 +3,16 @@ import bcrypt from 'bcryptjs';
 
 const { Pool } = pg;
 
+// Same rule as src/lib/db.ts: a database on this machine speaks plain TCP, everything
+// else is remote and must be encrypted.
+function sslFor(connectionString) {
+  try {
+    const host = new URL(connectionString).hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return false;
+  } catch {}
+  return { rejectUnauthorized: true };
+}
+
 async function main() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -16,7 +26,7 @@ async function main() {
     process.exit(1);
   }
 
-  const pool = new Pool({ connectionString, ssl: { rejectUnauthorized: true } });
+  const pool = new Pool({ connectionString, ssl: sslFor(connectionString) });
   try {
     const hash = await bcrypt.hash(password, 12);
     const { rowCount } = await pool.query(
