@@ -6,7 +6,7 @@ import { uploadAudio } from '@/lib/chunked-upload';
 import { InjectPanel } from '../../_components/InjectPanel';
 import { AuthGate } from '../../_components/AuthGate';
 import { AppBar } from '../../_components/AppBar';
-import { Spinner, Banner, useToast } from '../../_components/ui';
+import { Spinner, Banner, Sheet, useToast } from '../../_components/ui';
 import { PrayersEditor } from '../../_components/PrayersEditor';
 import { UpdatesEditor } from '../../_components/UpdatesEditor';
 import { LetterEditor } from '../../_components/LetterEditor';
@@ -41,6 +41,16 @@ function normTheme(t: any): Theme {
   const gradient = Array.isArray(t?.gradient) && t.gradient.length >= 2 ? t.gradient : ['#bbdfc5', '#d9efe0'];
   return { primaryHex: t?.primaryHex || '#1c4080', gradient };
 }
+
+// what a tap inside the preview can lead to — also the fallback menu when the tap
+// landed somewhere the board doesn't map to an editor
+const PICKABLE = [
+  { region: 'prayers', label: 'זמני תפילה', icon: '🕯️' },
+  { region: 'updates', label: 'עדכונים והודעות', icon: '📣' },
+  { region: 'letter', label: 'איגרת רבצ״ר', icon: '✉️' },
+  { region: 'support', label: 'מוקדי תמיכה', icon: '☎️' },
+  { region: 'photo', label: 'מסך תמונה מלאה', icon: '🖼️' },
+];
 
 const CITIES = [
   { label: 'ירושלים', latitude: 31.7683, longitude: 35.2137, elevation: 754 },
@@ -95,6 +105,10 @@ function Editor({ id }: { id: string }) {
   const { show, node } = useToast();
   const [tab, setTab] = useState<Tab>('content');
   const [preview, setPreview] = useState(false);
+  // which part of the board was tapped inside the preview, and a counter that
+  // reloads the board once the edit is saved
+  const [pick, setPick] = useState<{ region: string | null; label: string | null } | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
@@ -209,11 +223,21 @@ function Editor({ id }: { id: string }) {
         extras: { ...extras, photoBoard, supportLines },
       });
       show('נשמר בהצלחה ✓');
+      return true;
     } catch (e) {
       show(e instanceof ApiError ? e.message : 'שמירה נכשלה');
+      return false;
     } finally {
       setSaving(false);
     }
+  }
+
+  // saved from inside the preview: close the editor and pull the board again, so the
+  // change is visible on the spot — the same content the screens fetch within seconds
+  async function savePreviewEdit() {
+    if (!(await save())) return;
+    setPick(null);
+    setReloadKey((k) => k + 1);
   }
 
   async function deleteGroup() {
@@ -436,7 +460,51 @@ function Editor({ id }: { id: string }) {
           groupId={id}
           boards={boardRotation(isPhotoBoardLive(photoBoard))}
           onClose={() => setPreview(false)}
+          onPick={(region, label) => setPick({ region, label })}
+          reloadKey={reloadKey}
         />
+      )}
+      {preview && pick && (
+        <div className="bp-sheet">
+          <Sheet title={pick.label ? `עריכת ${pick.label}` : 'מה לערוך?'} onClose={() => setPick(null)}>
+            {pick.region === 'prayers' && <PrayersEditor value={prayers} onChange={setPrayers} />}
+            {(pick.region === 'updates' || pick.region === 'safety') && (
+              <UpdatesEditor value={updates} onChange={setUpdates} onUploadImage={uploadImage} />
+            )}
+            {pick.region === 'letter' && <LetterEditor value={letter} onChange={setLetter} />}
+            {pick.region === 'support' && (
+              <SupportLinesEditor value={supportLines} onChange={setSupportLines} />
+            )}
+            {pick.region === 'photo' && (
+              <PhotoBoardEditor value={photoBoard} onChange={setPhotoBoard} onUploadImage={uploadImage} />
+            )}
+            {/* a tap that didn't land on a known area still leads somewhere */}
+            {!pick.region && (
+              <div className="list">
+                {PICKABLE.map((p) => (
+                  <button
+                    key={p.region}
+                    className="btn btn-ghost btn-block"
+                    style={{ marginBottom: 8 }}
+                    onClick={() => setPick({ region: p.region, label: p.label })}
+                  >
+                    {p.icon} {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {pick.region && (
+              <button
+                className="btn btn-primary btn-block"
+                style={{ marginTop: 14 }}
+                onClick={savePreviewEdit}
+                disabled={saving}
+              >
+                {saving ? 'שומר…' : '💾 שמור ועדכן את המסכים'}
+              </button>
+            )}
+          </Sheet>
+        </div>
       )}
       {node}
     </>

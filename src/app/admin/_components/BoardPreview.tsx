@@ -13,11 +13,18 @@ export function BoardPreview({
   groupId,
   boards,
   onClose,
+  onPick,
+  reloadKey = 0,
 }: {
   groupId: string;
   boards: number[];
   onClose: () => void;
+  /** tapping a region of the board opens its editor; without it the preview is read-only */
+  onPick?: (region: string | null, label: string | null) => void;
+  /** bump after saving to pull the board's content again */
+  reloadKey?: number;
 }) {
+  const editable = !!onPick;
   const list = boards.length ? boards : [1, 2];
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -30,6 +37,20 @@ export function BoardPreview({
   const touch = useRef<{ x: number; y: number } | null>(null);
 
   const board = list[Math.min(idx, list.length - 1)] ?? 1;
+
+  // A board keeps its iframe once it has been shown. Re-creating it on every switch
+  // reloaded the fonts and the megabyte-sized artwork each time, which over a phone
+  // connection looked like the preview had frozen.
+  const [mounted, setMounted] = useState<number[]>([board]);
+  const [loaded, setLoaded] = useState<Record<number, boolean>>({});
+  useEffect(() => {
+    setMounted((m) => (m.includes(board) ? m : [...m, board]));
+  }, [board]);
+  useEffect(() => {
+    setMounted([board]);
+    setLoaded({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
   const step = useCallback(
     (d: number) => setIdx((i) => (i + d + list.length) % list.length),
     [list.length],
@@ -91,6 +112,20 @@ export function BoardPreview({
     return () => clearTimeout(t);
   }, [playing, idx, list.length, step]);
 
+  // the edit script injected into the board posts back the region that was tapped
+  useEffect(() => {
+    if (!onPick) return;
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      const d = e.data as { source?: string; region?: string | null; label?: string | null };
+      if (d?.source !== 'board-edit') return;
+      setPlaying(false); // hold the board still while they edit it
+      onPick(d.region ?? null, d.label ?? null);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [onPick]);
+
   // read after mount: the server has no `document`, and rendering the button from a
   // value that only exists in the browser breaks hydration
   const [canFullscreen, setCanFullscreen] = useState(false);
@@ -118,7 +153,9 @@ export function BoardPreview({
         </button>
         <div className="t">
           תצוגה מקדימה
-          <div className="sub">כך נראה המסך בטלוויזיה · התוכן השמור</div>
+          <div className="sub">
+            {editable ? 'הקש על אזור בלוח כדי לערוך אותו' : 'כך נראה המסך בטלוויזיה · התוכן השמור'}
+          </div>
         </div>
         <button
           className="bp-btn"
@@ -167,13 +204,21 @@ export function BoardPreview({
             visibility: scale ? 'visible' : 'hidden',
           }}
         >
-          <iframe
-            key={board}
-            src={`/api/welcome-html?board=${board}&board_id=${encodeURIComponent(groupId)}`}
-            title={LABELS[board] || `לוח ${board}`}
-            scrolling="no"
-          />
+          {mounted.map((b) => (
+            <iframe
+              key={`${b}:${reloadKey}`}
+              className={editable ? 'editable' : undefined}
+              hidden={b !== board}
+              src={`/api/welcome-html?board=${b}&board_id=${encodeURIComponent(groupId)}${
+                editable ? '&edit=1' : ''
+              }`}
+              title={LABELS[b] || `לוח ${b}`}
+              scrolling="no"
+              onLoad={() => setLoaded((l) => (l[b] ? l : { ...l, [b]: true }))}
+            />
+          ))}
         </div>
+        {!loaded[board] && <div className="bp-loading">טוען את הלוח…</div>}
       </div>
 
       <div className="bp-foot">

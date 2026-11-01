@@ -115,12 +115,86 @@ function kioskScript(
 </script>`;
 }
 
+// Preview-only: makes the board's own regions clickable. Every area that the manager
+// can actually edit is mapped to one of the editors on the phone; a click anywhere
+// else still opens the chooser, so no tap is a dead end.
+function editScript() {
+  return `
+<script>
+(function(){
+  var REGIONS = [
+    { key: 'prayers',  label: 'זמני תפילה',  sel: '.div-8, .div-9' },
+    { key: 'safety',   label: 'דגשי בטיחות', sel: 'section.safety-section, .safety-content' },
+    { key: 'updates',  label: 'עדכונים',     sel: 'section.did-you-know-section, .div-10, .div-11' },
+    { key: 'letter',   label: 'איגרת רבצ״ר', sel: '.div-wrapper, .text-wrapper-6' },
+    { key: 'support',  label: 'מוקדי תמיכה', sel: '.p.support-lines, .support-lines' },
+    { key: 'photo',    label: 'תמונה מלאה',  sel: '.photo-board, .photo-board img' }
+  ];
+
+  var style = document.createElement('style');
+  style.textContent = '.__edit-hot{outline:4px solid #4a90e2 !important;outline-offset:-4px;' +
+    'background:rgba(74,144,226,0.12) !important;cursor:pointer}' +
+    '.__edit-tip{position:fixed;z-index:2147483647;background:#1c4080;color:#fff;' +
+    'font:700 26px/1.2 Ploni,Arial,sans-serif;padding:10px 18px;border-radius:999px;' +
+    'pointer-events:none;transform:translate(-50%,-140%)}';
+  document.head.appendChild(style);
+
+  var tip = document.createElement('div');
+  tip.className = '__edit-tip';
+  tip.style.display = 'none';
+  document.body.appendChild(tip);
+
+  var current = null;
+  function match(node){
+    for (var el = node; el && el !== document.body; el = el.parentElement) {
+      for (var i = 0; i < REGIONS.length; i++) {
+        try { if (el.matches(REGIONS[i].sel)) return { el: el, region: REGIONS[i] }; } catch (e) {}
+      }
+    }
+    return null;
+  }
+  function clear(){
+    if (current) { current.el.classList.remove('__edit-hot'); current = null; }
+    tip.style.display = 'none';
+  }
+  function highlight(e){
+    var hit = match(e.target);
+    if (!hit) { clear(); return; }
+    if (current && current.el === hit.el) return;
+    clear();
+    current = hit;
+    hit.el.classList.add('__edit-hot');
+    var r = hit.el.getBoundingClientRect();
+    tip.textContent = 'עריכת ' + hit.region.label;
+    tip.style.left = (r.left + r.width / 2) + 'px';
+    tip.style.top = Math.max(60, r.top) + 'px';
+    tip.style.display = 'block';
+  }
+  document.addEventListener('pointermove', highlight, true);
+  document.addEventListener('pointerdown', highlight, true);
+
+  document.addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    var hit = match(e.target);
+    clear();
+    parent.postMessage({
+      source: 'board-edit',
+      region: hit ? hit.region.key : null,
+      label: hit ? hit.region.label : null
+    }, window.location.origin);
+  }, true);
+})();
+</script>`;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const requestedBoard = searchParams.get('board');
     const board_id = searchParams.get('board_id');
     const kiosk = searchParams.get('kiosk') === '1';
+    const edit = searchParams.get('edit') === '1';
     const screenId = searchParams.get('screen');
 
     if (!requestedBoard || !BOARDS.includes(requestedBoard)) {
@@ -177,8 +251,9 @@ export async function GET(request: NextRequest) {
         </script>
       `;
       const kioskTag = kiosk ? kioskScript(board, board_id, screenId, boards, boardsKnown) : '';
+      const editTag = edit ? editScript() : '';
       htmlContent = htmlContent.replace('</head>', `${dataScript}</head>`);
-      htmlContent = htmlContent.replace('</body>', `${kioskTag}</body>`);
+      htmlContent = htmlContent.replace('</body>', `${kioskTag}${editTag}</body>`);
 
       return new NextResponse(htmlContent, {
         headers: {
